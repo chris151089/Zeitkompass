@@ -33,3 +33,8 @@ func test_all_presets_are_exact_multiples_of_base_size() -> void:
 		var factor := DisplaySettings.compute_integer_scale(preset)
 		assert_eq(DisplaySettings.BASE_SIZE * factor, preset, str(preset))
 	assert_eq(DisplaySettings.PRESETS.back(), Vector2i(3840, 2160), "Optionen gehen bis 4K")
+
+
+func test_window_can_change_outside_editor() -> void:
+	# Tests laufen nie eingebettet im „Game“-Tab des Editors.
+	assert_true(DisplaySettings.can_change_window())

@@ -22,7 +22,9 @@ enum WindowMode { WINDOWED, BORDERLESS, FULLSCREEN }
 
 ## Größter ganzzahliger Faktor, mit dem BASE_SIZE ganz in window_size passt (mindestens 1).
 static func compute_integer_scale(window_size: Vector2i) -> int:
+	@warning_ignore("integer_division")
 	var fx := window_size.x / BASE_SIZE.x
+	@warning_ignore("integer_division")
 	var fy := window_size.y / BASE_SIZE.y
 	return maxi(1, mini(fx, fy))
 
@@ -34,7 +36,16 @@ static func compute_viewport_rect(window_size: Vector2i) -> Rect2i:
 	return Rect2i(offset, scaled)
 
 
-static func apply_window_mode(mode: WindowMode) -> void:
+## true, wenn das Spiel im „Game“-Tab des Editors eingebettet läuft.
+## Dort lassen sich Fenstergröße, Position und Vollbild nicht ändern.
+static func can_change_window() -> bool:
+	return not Engine.is_embedded_in_editor()
+
+
+## Gibt false zurück, wenn der Fenstermodus nicht geändert werden kann (eingebettet im Editor).
+static func apply_window_mode(mode: WindowMode) -> bool:
+	if not can_change_window():
+		return false
 	match mode:
 		WindowMode.WINDOWED:
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
@@ -43,15 +54,20 @@ static func apply_window_mode(mode: WindowMode) -> void:
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 		WindowMode.FULLSCREEN:
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
+	return true
 
 
 ## Setzt die Fenstergröße und zentriert das Fenster auf dem aktuellen Bildschirm.
-static func apply_window_size(size: Vector2i) -> void:
+## Gibt false zurück, wenn das nicht geht (eingebettet im Editor).
+static func apply_window_size(size: Vector2i) -> bool:
+	if not can_change_window():
+		return false
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 	DisplayServer.window_set_size(size)
 	var screen := DisplayServer.window_get_current_screen()
 	var screen_rect := DisplayServer.screen_get_usable_rect(screen)
 	DisplayServer.window_set_position(screen_rect.position + (screen_rect.size - size) / 2)
+	return true
 
 
 static func apply_vsync(enabled: bool) -> void:

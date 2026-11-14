@@ -6,6 +6,7 @@
 ## - zeigt Fenstergröße, Skalierungsfaktor und die zuletzt gedrückte Aktion
 ##
 ## Tasten: F2 = nächste Fenstergröße, F11 = Vollbild.
+## Beides geht nur im eigenen Fenster, nicht eingebettet im „Game“-Tab des Editors.
 extends Node2D
 
 const TILE := 32
@@ -24,6 +25,7 @@ const WATCHED_ACTIONS: Array[StringName] = [
 
 var _preset_index := -1
 var _last_action := "—"
+var _hint := ""
 
 @onready var _info: Label = $UI/Info
 
@@ -36,12 +38,13 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"toggle_fullscreen"):
 		var fullscreen := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
-		DisplaySettings.apply_window_mode(
+		_report(DisplaySettings.apply_window_mode(
 			DisplaySettings.WindowMode.WINDOWED if fullscreen else DisplaySettings.WindowMode.BORDERLESS
-		)
+		))
 	elif event.is_action_pressed(&"debug_cycle_resolution"):
-		_preset_index = (_preset_index + 1) % DisplaySettings.PRESETS.size()
-		DisplaySettings.apply_window_size(DisplaySettings.PRESETS[_preset_index])
+		var next := (_preset_index + 1) % DisplaySettings.PRESETS.size()
+		if _report(DisplaySettings.apply_window_size(DisplaySettings.PRESETS[next])):
+			_preset_index = next
 	else:
 		for action in WATCHED_ACTIONS:
 			if event.is_action_pressed(action):
@@ -59,10 +62,10 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	var size := DisplaySettings.BASE_SIZE
 	# Schachbrett aus 32×32-Kacheln
-	for y in range(0, size.y, TILE):
-		for x in range(0, size.x, TILE):
-			var odd := ((x / TILE) + (y / TILE)) % 2 == 1
-			draw_rect(Rect2(x, y, TILE, TILE), COLOR_BG_B if odd else COLOR_BG_A)
+	for ty in ceili(size.y / float(TILE)):
+		for tx in ceili(size.x / float(TILE)):
+			var odd := (tx + ty) % 2 == 1
+			draw_rect(Rect2(tx * TILE, ty * TILE, TILE, TILE), COLOR_BG_B if odd else COLOR_BG_A)
 	# Rasterlinien (1 px, auf ganzen Pixeln)
 	for x in range(0, size.x, TILE):
 		draw_rect(Rect2(x, 0, 1, size.y), COLOR_GRID)
@@ -81,16 +84,24 @@ func _draw() -> void:
 					draw_rect(Rect2(corner.x + px, corner.y + py, 1, 1), COLOR_BORDER)
 
 
+## Zeigt einen Hinweis, wenn das Fenster nicht geändert werden konnte.
+func _report(success: bool) -> bool:
+	_hint = "" if success else "Eingebettet im Editor: Fenster nicht aenderbar"
+	_update_info()
+	return success
+
+
 func _update_info() -> void:
 	var window := DisplayServer.window_get_size()
-	var scale := DisplaySettings.compute_integer_scale(window)
+	var factor := DisplaySettings.compute_integer_scale(window)
 	var rect := DisplaySettings.compute_viewport_rect(window)
 	_info.text = "\n".join([
 		"ZEITKOMPASS - M0 Testbild",
 		"Intern: %dx%d   Fenster: %dx%d" % [DisplaySettings.BASE_SIZE.x, DisplaySettings.BASE_SIZE.y, window.x, window.y],
-		"Faktor: %dx   Rand: %d / %d px" % [scale, rect.position.x, rect.position.y],
+		"Faktor: %dx   Rand: %d / %d px" % [factor, rect.position.x, rect.position.y],
 		"Aktion: %s" % _last_action,
 		"F2: Groesse wechseln   F11: Vollbild",
+		_hint,
 	])
 
 

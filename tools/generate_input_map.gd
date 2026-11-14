@@ -53,9 +53,9 @@ const ACTIONS := {
 func _init() -> void:
 	# Alte Spiel-Aktionen entfernen, damit gelöschte Aktionen nicht liegen bleiben.
 	for prop in ProjectSettings.get_property_list():
-		var name: String = prop.name
-		if name.begins_with("input/") and not name.begins_with("input/ui_"):
-			ProjectSettings.clear(name)
+		var setting: String = prop.name
+		if setting.begins_with("input/") and not setting.begins_with("input/ui_"):
+			ProjectSettings.clear(setting)
 
 	for action: String in ACTIONS:
 		var spec: Dictionary = ACTIONS[action]

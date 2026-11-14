@@ -34,6 +34,6 @@ func test_pixel_snapping_enabled() -> void:
 
 
 func test_autoloads_registered() -> void:
-	for name in ["GameState", "SaveManager", "AudioManager", "DialogueManager", "SceneLoader"]:
-		assert_true(ProjectSettings.has_setting("autoload/" + name), name + " ist Autoload")
-		assert_not_null(get_tree().root.get_node_or_null(name), name + " läuft")
+	for autoload_name in ["GameState", "SaveManager", "AudioManager", "DialogueManager", "SceneLoader"]:
+		assert_true(ProjectSettings.has_setting("autoload/" + autoload_name), autoload_name + " ist Autoload")
+		assert_not_null(get_tree().root.get_node_or_null(autoload_name), autoload_name + " läuft")
