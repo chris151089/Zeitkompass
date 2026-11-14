@@ -1,0 +1,60 @@
+extends GutTest
+## Jede Spiel-Aktion muss mit Tastatur UND Controller bedienbar sein.
+
+const GAMEPLAY_ACTIONS: Array[StringName] = [
+	&"move_up", &"move_down", &"move_left", &"move_right",
+	&"attack", &"dodge", &"jump", &"sprint",
+	&"echo_cast", &"echo_prev", &"echo_next",
+	&"interact", &"inventory", &"pause",
+]
+
+## Nur Tastatur: Anzeige/Debug.
+const KEYBOARD_ONLY_ACTIONS: Array[StringName] = [&"toggle_fullscreen", &"debug_cycle_resolution"]
+
+
+func test_gameplay_actions_have_keyboard_and_controller() -> void:
+	for action in GAMEPLAY_ACTIONS:
+		assert_true(InputMap.has_action(action), "%s existiert" % action)
+		if not InputMap.has_action(action):
+			continue
+		var events := InputMap.action_get_events(action)
+		assert_true(events.any(func(e): return e is InputEventKey), "%s: Tastatur" % action)
+		assert_true(
+			events.any(func(e): return e is InputEventJoypadButton or e is InputEventJoypadMotion),
+			"%s: Controller" % action,
+		)
+
+
+func test_keyboard_only_actions_exist() -> void:
+	for action in KEYBOARD_ONLY_ACTIONS:
+		assert_true(InputMap.has_action(action), "%s existiert" % action)
+
+
+func test_no_unlisted_game_actions() -> void:
+	# Neue Aktionen bitte in tools/generate_input_map.gd UND hier eintragen.
+	for action in InputMap.get_actions():
+		if String(action).begins_with("ui_"):
+			continue
+		assert_true(
+			action in GAMEPLAY_ACTIONS or action in KEYBOARD_ONLY_ACTIONS,
+			"%s ist in den Tests bekannt" % action,
+		)
+
+
+func test_no_keyboard_key_bound_twice() -> void:
+	var seen := {}
+	for action in GAMEPLAY_ACTIONS + KEYBOARD_ONLY_ACTIONS:
+		for e in InputMap.action_get_events(action):
+			if e is InputEventKey:
+				var key: int = e.physical_keycode
+				assert_false(seen.has(key), "Taste %s doppelt (%s, %s)" % [OS.get_keycode_string(key), seen.get(key), action])
+				seen[key] = action
+
+
+func test_move_vector_from_simulated_input() -> void:
+	Input.action_press(&"move_right")
+	Input.action_press(&"move_up")
+	var v := Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
+	Input.action_release(&"move_right")
+	Input.action_release(&"move_up")
+	assert_almost_eq(v, Vector2(1, -1).normalized(), Vector2(0.01, 0.01))
