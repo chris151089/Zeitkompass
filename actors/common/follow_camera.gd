@@ -14,6 +14,9 @@ extends Camera2D
 
 var _smoothed: Vector2
 var _target: Node2D
+var _shake_strength: float = 0.0
+var _shake_time: float = 0.0
+var _shake_duration: float = 0.0
 
 
 func _ready() -> void:
@@ -22,6 +25,7 @@ func _ready() -> void:
 	process_callback = Camera2D.CAMERA2D_PROCESS_PHYSICS
 	# Erst nach der Bewegung des Ziels im selben Physik-Schritt nachziehen.
 	process_physics_priority = 100
+	add_to_group(HitFeedback.SHAKE_GROUP)
 	snap_to_target()
 
 
@@ -30,6 +34,24 @@ func _physics_process(delta: float) -> void:
 		return
 	_smoothed = smooth_towards(_smoothed, _target_position(), follow_speed, delta)
 	global_position = _smoothed
+	_update_shake(delta)
+
+
+## Bildschirmwackeln (über HitFeedback.shake() an alle Kameras der Gruppe).
+func shake(strength: float, duration: float) -> void:
+	if strength >= _shake_strength * (_shake_time / maxf(_shake_duration, 0.001)):
+		_shake_strength = strength
+		_shake_time = duration
+		_shake_duration = duration
+
+
+func _update_shake(delta: float) -> void:
+	if _shake_time <= 0.0:
+		offset = Vector2.ZERO
+		return
+	_shake_time -= delta
+	var fade := clampf(_shake_time / _shake_duration, 0.0, 1.0)
+	offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake_strength * fade
 
 
 ## Springt ohne Glättung zum Ziel (z. B. nach Szenenwechsel oder Teleport).

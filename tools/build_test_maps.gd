@@ -1,10 +1,23 @@
-## Füllt die Testkarte levels/test/movement_test.tscn mit Kacheln und Props.
-## Aufruf: godot --headless --script res://tools/build_movement_test_map.gd
+## Füllt die Testkarten mit Kacheln, Props und (in der Kampfarena) Gegnern.
+## Aufruf: godot --headless --script res://tools/build_test_maps.gd
 ##
-## Achtung: überschreibt alle Änderungen an Kacheln und Props der Testkarte.
+##   levels/test/movement_test.tscn – Laufen, Kollision, Kamera (M1)
+##   levels/test/combat_test.tscn   – gleiche Karte + Gegner, HUD, Neustart (M2)
+##
+## Achtung: überschreibt alle Änderungen an Kacheln, Props und Gegnern dieser Karten.
 extends SceneTree
 
-const SCENE := "res://levels/test/movement_test.tscn"
+const SCENES := {
+	"res://levels/test/movement_test.tscn": false,
+	"res://levels/test/combat_test.tscn": true,
+}
+const ENEMY_DIR := "res://actors/enemies/"
+const LEVEL_SCRIPT := "res://levels/test/test_level.gd"
+## Gegner der Kampfarena: [Szene, x, y]
+const ENEMIES := [
+	["skeleton", 380, 150], ["skeleton", 720, 380], ["skeleton", 520, 380],
+	["orc", 560, 170], ["orc", 260, 440],
+]
 const PROPS := "res://levels/props/"
 const SIZE := Vector2i(48, 30)  # Kacheln (16 px) -> 768 x 480 px
 
@@ -45,7 +58,22 @@ const DECOR_COUNT := 60
 
 
 func _init() -> void:
-	var root: Node = (load(SCENE) as PackedScene).instantiate(PackedScene.GEN_EDIT_STATE_INSTANCE)
+	var failed := false
+	for scene: String in SCENES:
+		if _build(scene, SCENES[scene]) != OK:
+			failed = true
+	quit(1 if failed else 0)
+
+
+func _build(scene_path: String, with_enemies: bool) -> Error:
+	var root: Node = (load(scene_path) as PackedScene).instantiate(PackedScene.GEN_EDIT_STATE_INSTANCE)
+	# Ausdrücklich setzen: Kompilierte das Skript beim Laden nicht, ginge es sonst beim Speichern verloren.
+	var level_script: GDScript = load(LEVEL_SCRIPT)
+	if level_script == null or not level_script.can_instantiate():
+		push_error("%s kompiliert nicht – Karte wird nicht gespeichert" % LEVEL_SCRIPT)
+		root.free()
+		return FAILED
+	root.set_script(level_script)
 	var ground: TileMapLayer = root.get_node("Ground")
 	var decor: TileMapLayer = root.get_node("Decor")
 	var cliffs: TileMapLayer = root.get_node("Cliffs")
@@ -84,13 +112,22 @@ func _init() -> void:
 		_add_prop(root, world, "pine", Vector2(-8, y))
 		_add_prop(root, world, "pine_light", Vector2(w + 8, y))
 
+	if with_enemies:
+		for e: Array in ENEMIES:
+			var enemy: Node2D = (load(ENEMY_DIR + e[0] + ".tscn") as PackedScene).instantiate(
+				PackedScene.GEN_EDIT_STATE_INSTANCE
+			)
+			enemy.position = Vector2(e[1], e[2])
+			world.add_child(enemy, true)
+			enemy.owner = root
+
 	var packed := PackedScene.new()
 	var err := packed.pack(root)
 	if err == OK:
-		err = ResourceSaver.save(packed, SCENE)
-	print("Testkarte gespeichert: %s (%s)" % [SCENE, error_string(err)])
+		err = ResourceSaver.save(packed, scene_path)
+	print("Testkarte gespeichert: %s (%s)" % [scene_path, error_string(err)])
 	root.free()
-	quit(0 if err == OK else 1)
+	return err
 
 
 func _add_prop(root: Node, world: Node2D, scene_name: String, pos: Vector2) -> void:

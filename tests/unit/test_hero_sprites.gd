@@ -51,3 +51,14 @@ func test_sprite_is_anchored_at_feet() -> void:
 	assert_eq(sprite.position.y, 32.0 - sheet.anchor.y)
 	assert_eq(sprite.position.x, 32.0 - sheet.anchor.x)
 	player.free()
+
+
+func test_hero_sheet_flags_match_json() -> void:
+	# combo: Treffer-Frames 1, 3, 5 (je zweiter Frame eines Schlags)
+	assert_false(HeroSheet.is_hit_active("combo", 0))
+	assert_true(HeroSheet.is_hit_active("combo", 1))
+	assert_true(HeroSheet.is_hit_active("combo", 5))
+	assert_true(HeroSheet.is_invulnerable("roll", 2))
+	assert_false(HeroSheet.is_invulnerable("roll", 0))
+	assert_false(HeroSheet.is_hit_active("combo", 99), "außerhalb: false statt Absturz")
+	assert_eq(HeroSheet.frame_count("roll"), 5)

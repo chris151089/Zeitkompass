@@ -1,0 +1,66 @@
+[gd_resource type="Resource" script_class="PlayerCombatData" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://actors/player/player_combat_data.gd" id="1_pc"]
+[ext_resource type="Script" path="res://combat/attack_data.gd" id="2_ad"]
+
+[sub_resource type="Resource" id="Resource_hit1"]
+script = ExtResource("2_ad")
+damage = 1
+knockback = 120.0
+hitstop = 0.05
+shake = 0.0
+hitbox_size = Vector2(20, 16)
+hitbox_distance = 13.0
+lunge_speed = 45.0
+
+[sub_resource type="Resource" id="Resource_hit2"]
+script = ExtResource("2_ad")
+damage = 1
+knockback = 120.0
+hitstop = 0.05
+shake = 0.0
+hitbox_size = Vector2(20, 16)
+hitbox_distance = 13.0
+lunge_speed = 45.0
+
+[sub_resource type="Resource" id="Resource_hit3"]
+script = ExtResource("2_ad")
+damage = 2
+knockback = 220.0
+hitstop = 0.09
+shake = 2.0
+hitbox_size = Vector2(24, 20)
+hitbox_distance = 14.0
+lunge_speed = 70.0
+
+[sub_resource type="Resource" id="Resource_sprint"]
+script = ExtResource("2_ad")
+damage = 2
+knockback = 240.0
+hitstop = 0.08
+shake = 2.0
+hitbox_size = Vector2(26, 12)
+hitbox_distance = 18.0
+lunge_speed = 0.0
+
+[sub_resource type="Resource" id="Resource_jump"]
+script = ExtResource("2_ad")
+damage = 2
+knockback = 200.0
+hitstop = 0.1
+shake = 3.0
+hitbox_size = Vector2(28, 22)
+hitbox_distance = 8.0
+lunge_speed = 0.0
+
+[resource]
+script = ExtResource("1_pc")
+max_health = 6
+combo = Array[ExtResource("2_ad")]([SubResource("Resource_hit1"), SubResource("Resource_hit2"), SubResource("Resource_hit3")])
+sprint_attack = SubResource("Resource_sprint")
+jump_attack = SubResource("Resource_jump")
+sprint_attack_speed = 170.0
+jump_attack_speed = 80.0
+roll_speed = 150.0
+hurt_time = 0.25
+invulnerable_after_hurt = 1.0

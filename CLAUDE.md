@@ -50,6 +50,8 @@ verbindlichen Regeln zusammen.
   Keine Balancing-Zahlen im Code.
 - **Speicherstände** als JSON mit Versionsnummer (`SaveManager.SAVE_VERSION`) + Migration.
 - **Szenenwechsel** nur über `SceneLoader.change_scene()`, nie direkt `change_scene_to_file()`.
+  In Skripten, die auch von Generatoren (`--script`) geladen werden (z. B. Level-Skripte), Autoloads
+  über `get_node(^"/root/<Name>")` ansprechen – dort sind Autoload-Namen unbekannt.
 - **Eingaben nur über Input-Map-Aktionen**, nie feste Tasten im Code.
 
 ## Input-Map
@@ -85,7 +87,24 @@ ergänzen. Jede Spiel-Aktion braucht Tastatur **und** Controller.
 - Props (Bäume, Büsche, Steine) sind Szenen in `levels/props/` – Ursprung am Fuß, in den y-sortierten
   Knoten `World` ziehen. Kacheln: `assets/tilesets/pixel_crawler_tileset.tres`
 - Figuren-Ursprung = Füße (für Y-Sortierung); Kollisionsform nur an den Füßen
-- Physik-Ebenen: 1 = `world` (Kacheln), 2 = `player`
+- Physik-Ebenen: 1 = `world` (Kacheln, Props, Kartenränder), 2 = `player`, 3 = `enemy`,
+  4 = `player_hurtbox`, 5 = `enemy_hurtbox`. Spieler-Hitbox maskiert 5, Gegner-Hitbox maskiert 4.
+
+## Kampf (ab M2)
+
+- `combat/`: `Hitbox` (Szene `hitbox.tscn`, `activate(attack, richtung)` / `deactivate()`, trifft jede
+  Hurtbox pro Aktivierung einmal), `Hurtbox` (`invulnerable`, Signal `hurt(DamageInfo)`), `Health`
+  (`health_changed`, `died`), `AttackData` (Resource: Schaden, Rückstoß, Hitstop, Wackeln, Trefferzone),
+  `HitFeedback` (Hitstop über `Engine.time_scale`, Bildschirmwackeln über Gruppe `camera_shake`,
+  Aufblitzen über `flash.gdshader`). Nach Tests/Szenenwechsel `HitFeedback.reset()`.
+- Kael: Zustände `Attack` (3er-Combo), `SprintAttack`, `JumpAttack`, `Roll`, `Hurt`, `Dead`.
+  Treffer- und I-Frames kommen aus `hero_sheet.json` über `HeroSheet` – **nie** im Code nachbauen.
+  Werte: `data/player/player_combat.tres` (`PlayerCombatData`).
+- Gegner: `actors/enemies/enemy.tscn` + Zustände in `actors/enemies/states/` (Idle, Chase, Strafe,
+  Windup, Attack, Recover, Hurt, Dead); Typen als geerbte Szenen (`orc.tscn`, `skeleton.tscn`) mit
+  `EnemyData` in `data/enemies/`. Ausholen = rotes Aufleuchten (lesbare Vorwarnung). Ziel = Gruppe `player`.
+- HUD `ui/hud/` (Herzen, 2 LP je Herz), Neustart-Bildschirm `ui/game_over/`; beides verdrahtet das
+  Level-Skript `levels/test/test_level.gd`. Kampfarena: `levels/test/combat_test.tscn` (Startszene).
 
 ## Generator-Skripte (`tools/`)
 
@@ -98,7 +117,10 @@ Erzeugte Dateien nicht von Hand ändern, sondern das Skript anpassen und neu aus
 | `build_pixel_crawler_tileset.gd` | `assets/tilesets/pixel_crawler_tileset.tres` (Kollisionen) |
 | `build_props.gd` | Prop-Szenen in `levels/props/` |
 | `build_hero_frames.gd` | `assets/sprites/hero/hero_frames.tres` aus `hero_sheet.json` |
-| `build_movement_test_map.gd` | Kacheln + Props der Testkarte (überschreibt Änderungen im Editor!) |
+| `build_enemy_sprites.py` (Python + Pillow) | Gegner-Sprites auf 64er-Zellen, Fußpunkt (32, 60) |
+| `build_enemy_frames.gd` | `assets/sprites/enemies/<name>/<name>_frames.tres` |
+| `build_ui_sprites.py` (Python + Pillow) | Herzen `assets/sprites/ui/hearts.png` |
+| `build_test_maps.gd` | Kacheln, Props, Gegner beider Testkarten (überschreibt Änderungen im Editor!) |
 
 ## Konventionen
 

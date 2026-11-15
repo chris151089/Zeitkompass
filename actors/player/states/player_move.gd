@@ -8,6 +8,8 @@ const MIN_ANIMATION_SPEED := 0.5
 
 
 func physics_update(delta: float) -> void:
+	if _player.try_start_action(false):
+		return
 	var input := _player.get_move_input()
 	if input.is_zero_approx():
 		state_machine.transition_to(&"Idle")

@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="Script" path="res://actors/player/player.gd" id="1_player"]
 [ext_resource type="Resource" path="res://data/player/player_movement.tres" id="2_move"]
@@ -8,16 +8,30 @@
 [ext_resource type="Script" path="res://actors/player/states/player_move.gd" id="6_move"]
 [ext_resource type="Script" path="res://actors/common/follow_camera.gd" id="7_cam"]
 [ext_resource type="Script" path="res://actors/player/states/player_run.gd" id="8_run"]
+[ext_resource type="Resource" path="res://data/player/player_combat.tres" id="9_combat"]
+[ext_resource type="Script" path="res://combat/health.gd" id="10_health"]
+[ext_resource type="Script" path="res://combat/hurtbox.gd" id="11_hurtbox"]
+[ext_resource type="PackedScene" path="res://combat/hitbox.tscn" id="12_hitbox"]
+[ext_resource type="Script" path="res://actors/player/states/player_attack.gd" id="13_attack"]
+[ext_resource type="Script" path="res://actors/player/states/player_sprint_attack.gd" id="14_sprint"]
+[ext_resource type="Script" path="res://actors/player/states/player_jump_attack.gd" id="15_jump"]
+[ext_resource type="Script" path="res://actors/player/states/player_roll.gd" id="16_roll"]
+[ext_resource type="Script" path="res://actors/player/states/player_hurt.gd" id="17_hurt"]
+[ext_resource type="Script" path="res://actors/player/states/player_dead.gd" id="18_dead"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_feet"]
 size = Vector2(10, 6)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(12, 22)
+
 [node name="Player" type="CharacterBody2D"]
 collision_layer = 2
-collision_mask = 1
+collision_mask = 5
 motion_mode = 1
 script = ExtResource("1_player")
 movement = ExtResource("2_move")
+combat = ExtResource("9_combat")
 
 [node name="Sprite" type="AnimatedSprite2D" parent="."]
 position = Vector2(0, -19)
@@ -28,7 +42,23 @@ animation = &"idle_down"
 position = Vector2(0, -3)
 shape = SubResource("RectangleShape2D_feet")
 
+[node name="Health" type="Node" parent="."]
+script = ExtResource("10_health")
+
+[node name="Hurtbox" type="Area2D" parent="."]
+collision_layer = 8
+collision_mask = 0
+script = ExtResource("11_hurtbox")
+
+[node name="Shape" type="CollisionShape2D" parent="Hurtbox"]
+position = Vector2(0, -11)
+shape = SubResource("RectangleShape2D_body")
+
+[node name="Hitbox" parent="." instance=ExtResource("12_hitbox")]
+collision_mask = 16
+
 [node name="Camera" type="Camera2D" parent="."]
+process_callback = 0
 script = ExtResource("7_cam")
 
 [node name="StateMachine" type="Node" parent="." node_paths=PackedStringArray("initial_state")]
@@ -43,3 +73,21 @@ script = ExtResource("6_move")
 
 [node name="Run" type="Node" parent="StateMachine"]
 script = ExtResource("8_run")
+
+[node name="Attack" type="Node" parent="StateMachine"]
+script = ExtResource("13_attack")
+
+[node name="SprintAttack" type="Node" parent="StateMachine"]
+script = ExtResource("14_sprint")
+
+[node name="JumpAttack" type="Node" parent="StateMachine"]
+script = ExtResource("15_jump")
+
+[node name="Roll" type="Node" parent="StateMachine"]
+script = ExtResource("16_roll")
+
+[node name="Hurt" type="Node" parent="StateMachine"]
+script = ExtResource("17_hurt")
+
+[node name="Dead" type="Node" parent="StateMachine"]
+script = ExtResource("18_dead")

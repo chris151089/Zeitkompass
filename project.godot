@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Zeitkompass"
 config/description="2D-Action-RPG in Pixel-Art (Arbeitstitel)."
-run/main_scene="res://levels/test/movement_test.tscn"
+run/main_scene="res://levels/test/combat_test.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [autoload]
@@ -147,6 +147,9 @@ debug_cycle_resolution={
 
 2d_physics/layer_1="world"
 2d_physics/layer_2="player"
+2d_physics/layer_3="enemy"
+2d_physics/layer_4="player_hurtbox"
+2d_physics/layer_5="enemy_hurtbox"
 
 [physics]
 
