@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://baqb1brk0blvo"
-path="res://.godot/imported/hit_side.png-1ca62cfb5c9de6077f34e9459c3b7c93.ctex"
+uid="uid://gw7yn0bpjf1h"
+path="res://.godot/imported/hero_sheet.png-095c5363a47c042c5ed8cd3a2539fdef.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/hero/hit_side.png"
-dest_files=["res://.godot/imported/hit_side.png-1ca62cfb5c9de6077f34e9459c3b7c93.ctex"]
+source_file="res://assets/sprites/hero/hero_sheet.png"
+dest_files=["res://.godot/imported/hero_sheet.png-095c5363a47c042c5ed8cd3a2539fdef.ctex"]
 
 [params]
 

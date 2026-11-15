@@ -112,7 +112,8 @@ docs/            dieses Design-Dokument, Notizen
 Für den Vertical Slice reichen fertige Asset-Pakete aus einer einheitlichen Quelle. Eigene Grafik lohnt sich erst, wenn das Spiel trägt.
 
 - **Stil:** Pixel-Art im SNES-Detailgrad, 16 × 16-Kacheln, Figuren etwa 16 × 30 Pixel (in 64 × 64-Frames), begrenzte Farbpalette für einen einheitlichen Look
-- **Grafikpaket:** „Pixel Crawler“ von Anokolisa (Free Pack) – Gelände, Bäume, Gegner, Held-Animationen. Der Held ist im Free Pack ein nackter Grundkörper und wird per Skript eingekleidet; später ggf. durch gekaufte Kleidungsebenen oder eigene Grafik ersetzen
+- **Grafikpaket:** „Pixel Crawler“ von Anokolisa (Free Pack) – Gelände, Bäume, Gegner, NPCs
+- **Held:** eigenes Spritesheet (blonder Stachelkopf, Tunika, Schal, Stab/Speer) mit 4 Richtungen und allen Kampfaktionen; Timing und Treffer-/Unverwundbarkeits-Frames stehen in `hero_sheet.json`
 - **Quellen für Grafik:** itch.io (viele günstige Top-down-RPG-Pakete), OpenGameArt (kostenlos); möglichst alles von einem Künstler oder in einem Stil
 - **Eigene Grafik:** Aseprite zum Zeichnen und Animieren, Export als Spritesheet
 - **Musik und Sound:** fertige Pakete von itch.io oder Freesound; später eigene Musik oder Auftragsarbeit

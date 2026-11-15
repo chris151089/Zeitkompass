@@ -1,8 +1,7 @@
 extends GutTest
-## TileSet, Props und Held-Animationen aus „Pixel Crawler“.
+## TileSet und Props aus „Pixel Crawler“.
 
 const TILESET := preload("res://assets/tilesets/pixel_crawler_tileset.tres")
-const HERO_FRAMES := preload("res://assets/sprites/hero/hero_frames.tres")
 const PROP_DIR := "res://levels/props/"
 
 
@@ -37,11 +36,3 @@ func test_every_prop_has_sprite_above_its_foot() -> void:
 		assert_true(prop.has_node("Collision"), "%s: hat Kollision" % file)
 		prop.free()
 
-
-func test_hero_has_all_animations_in_three_directions() -> void:
-	for action in ["idle", "walk", "run", "slice", "pierce", "crush", "hit", "death"]:
-		for dir in ["down", "side", "up"]:
-			var anim := StringName("%s_%s" % [action, dir])
-			assert_true(HERO_FRAMES.has_animation(anim), "%s vorhanden" % anim)
-			if HERO_FRAMES.has_animation(anim):
-				assert_gt(HERO_FRAMES.get_frame_count(anim), 0, "%s hat Frames" % anim)

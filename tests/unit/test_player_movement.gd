@@ -43,23 +43,20 @@ func test_walks_right_and_switches_states() -> void:
 	assert_eq(player.state_machine.current_state_name(), &"Move")
 	assert_eq(player.facing, TopDownMotion.Facing.RIGHT)
 	var sprite: AnimatedSprite2D = player.get_node("Sprite")
-	assert_eq(sprite.animation, &"walk_side")
-	assert_false(sprite.flip_h, "nach rechts nicht gespiegelt")
+	assert_eq(sprite.animation, &"walk_right")
 	Input.action_release(&"move_right")
 	await wait_seconds(0.3)
 	assert_eq(player.state_machine.current_state_name(), &"Idle")
-	assert_eq(sprite.animation, &"idle_side")
+	assert_eq(sprite.animation, &"idle_right")
 	assert_gt(player.global_position.x, start.x + 20.0, "ist nach rechts gelaufen")
 	assert_eq(player.velocity, Vector2.ZERO, "steht wieder")
 
 
-func test_walking_left_mirrors_side_sprite() -> void:
+func test_walking_left_uses_left_animation() -> void:
 	_teleport(Vector2(200, 220))
 	Input.action_press(&"move_left")
 	await wait_seconds(0.3)
-	var sprite: AnimatedSprite2D = player.get_node("Sprite")
-	assert_eq(sprite.animation, &"walk_side")
-	assert_true(sprite.flip_h, "nach links gespiegelt")
+	assert_eq(player.get_node("Sprite").animation, &"walk_left")
 
 
 func test_cliff_wall_blocks() -> void:

@@ -15,7 +15,10 @@ verbindlichen Regeln zusammen.
   um ganze Spielpixel (bei ×6 sichtbares Ruckeln). So bewegen sich Kamera und Figuren stufenlos,
   jeder Texel bleibt trotzdem ein scharfes, gleich großes Quadrat.
 - **Kachelgröße:** 16 × 16, Karten mit `TileMapLayer` (nicht das alte `TileMap`)
-- **Figuren:** ca. 16 × 30 Pixel in 64 × 64-Frames (Ursprung an den Füßen)
+- **Figuren:** ca. 16–25 × 30 Pixel in 64 × 64-Frames (Ursprung an den Füßen)
+- **Held:** eigenes Spritesheet `assets/sprites/hero/hero_sheet.png` + `hero_sheet.json`
+  (4 Richtungen, idle/walk/combo/sprint/jump/roll, Frame-Dauern, `hit_active`/`invulnerable` je Frame,
+  Fußpunkt `anchor`). Die JSON ist die Quelle der Wahrheit für Animation **und** Kampf-Timing (M2).
 - **Grafik:** „Pixel Crawler“ (Anokolisa, Free Pack) unverändert in `assets/packs/pixel_crawler/`;
   daraus erzeugte Dateien in `assets/sprites/`, `assets/tilesets/`, `levels/props/`
 - **Ziel:** Windows-PC, später optional Linux/Web
@@ -27,8 +30,9 @@ verbindlichen Regeln zusammen.
 - **In Arbeit: M1 – Bewegung** – umgesetzt, wartet auf Test durch den Nutzer: Held läuft in
   8 Richtungen (3 Sprite-Richtungen, links = gespiegelt), Kollision mit Klippen/Bäumen/Steinen,
   Folge-Kamera ohne Pixel-Zittern, Testkarte `levels/test/movement_test.tscn`
-- **Danach: M2 – Kampf** – Held-Animationen dafür liegen schon bereit (`slice`, `pierce`, `crush`,
-  `hit`, `death`); Gegner (Orks, Skelette) haben nur Seitenansicht und keine Angriffsanimation
+- **Danach: M2 – Kampf** – Held-Animationen liegen bereit (`combo` mit 3 Schlägen, `sprint`, `jump`,
+  `roll` mit I-Frames); es fehlen noch Treffer- und Todesanimation des Helden. Gegner (Orks, Skelette
+  aus Pixel Crawler) haben nur Seitenansicht und keine Angriffsanimation
 - Ein Meilenstein ist erst fertig, wenn **alle** Kriterien aus `docs/design.md` erfüllt sind –
   vorher nichts Neues anfangen. Abschnitt „Aktueller Stand“ nach jedem Meilenstein aktualisieren.
 
@@ -75,8 +79,7 @@ ergänzen. Jede Spiel-Aktion braucht Tastatur **und** Controller.
 - `actors/common/follow_camera.gd`: weiche Folge-Kamera im Physik-Takt (Godot interpoliert sie
   zusammen mit den Figuren). **Nicht** auf ganze Pixel runden. Nach Teleports
   `reset_physics_interpolation()` bzw. `snap_to_target()` aufrufen.
-- Animationen heißen `<aktion>_<down|side|up>`: `idle_down`, `walk_side`, … „side“ blickt nach
-  rechts, für links wird gespiegelt (`TopDownMotion.sprite_direction()`)
+- Animationen heißen `<aktion>_<down|left|right|up>`: `idle_down`, `walk_left`, `combo_up`, …
 - Props (Bäume, Büsche, Steine) sind Szenen in `levels/props/` – Ursprung am Fuß, in den y-sortierten
   Knoten `World` ziehen. Kacheln: `assets/tilesets/pixel_crawler_tileset.tres`
 - Figuren-Ursprung = Füße (für Y-Sortierung); Kollisionsform nur an den Füßen
@@ -92,8 +95,7 @@ Erzeugte Dateien nicht von Hand ändern, sondern das Skript anpassen und neu aus
 | `generate_input_map.gd` | Input-Map in `project.godot` |
 | `build_pixel_crawler_tileset.gd` | `assets/tilesets/pixel_crawler_tileset.tres` (Kollisionen) |
 | `build_props.gd` | Prop-Szenen in `levels/props/` |
-| `build_hero_sprites.py` (Python + Pillow) | eingekleideter Held `assets/sprites/hero/*.png` |
-| `build_hero_frames.gd` | `assets/sprites/hero/hero_frames.tres` |
+| `build_hero_frames.gd` | `assets/sprites/hero/hero_frames.tres` aus `hero_sheet.json` |
 | `build_movement_test_map.gd` | Kacheln + Props der Testkarte (überschreibt Änderungen im Editor!) |
 
 ## Konventionen

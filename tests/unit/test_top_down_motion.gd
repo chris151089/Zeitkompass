@@ -84,9 +84,3 @@ func test_facing_names_match_animation_names() -> void:
 	assert_eq(TopDownMotion.facing_name(F.RIGHT), &"right")
 	assert_eq(TopDownMotion.facing_name(F.UP), &"up")
 
-
-func test_sprite_direction_mirrors_left() -> void:
-	assert_eq(TopDownMotion.sprite_direction(F.LEFT), [&"side", true])
-	assert_eq(TopDownMotion.sprite_direction(F.RIGHT), [&"side", false])
-	assert_eq(TopDownMotion.sprite_direction(F.UP), [&"up", false])
-	assert_eq(TopDownMotion.sprite_direction(F.DOWN), [&"down", false])
