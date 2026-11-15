@@ -51,9 +51,15 @@ func test_no_keyboard_key_bound_twice() -> void:
 				seen[key] = action
 
 
+## Bewusst geteilte Tasten (kontextabhängig): Controller-A = Springen oder Interagieren.
+const SHARED_CONTROLLER_ACTIONS: Array[StringName] = [&"interact"]
+
+
 func test_no_controller_input_bound_twice() -> void:
 	var seen := {}
 	for action in GAMEPLAY_ACTIONS:
+		if action in SHARED_CONTROLLER_ACTIONS:
+			continue
 		for e in InputMap.action_get_events(action):
 			var key := ""
 			if e is InputEventJoypadButton:
@@ -64,6 +70,21 @@ func test_no_controller_input_bound_twice() -> void:
 				continue
 			assert_false(seen.has(key), "Controller %s doppelt (%s, %s)" % [key, seen.get(key), action])
 			seen[key] = action
+
+
+func test_xbox_layout() -> void:
+	var expect := {
+		&"attack": JOY_BUTTON_B, &"jump": JOY_BUTTON_A, &"sprint": JOY_BUTTON_X, &"interact": JOY_BUTTON_A,
+	}
+	for action: StringName in expect:
+		var ok := InputMap.action_get_events(action).any(
+			func(e): return e is InputEventJoypadButton and e.button_index == expect[action]
+		)
+		assert_true(ok, "%s liegt auf Taste %d" % [action, expect[action]])
+	var roll_rt := InputMap.action_get_events(&"dodge").any(
+		func(e): return e is InputEventJoypadMotion and e.axis == JOY_AXIS_TRIGGER_RIGHT
+	)
+	assert_true(roll_rt, "Rolle liegt auf RT")
 
 
 func test_run_is_on_xbox_x() -> void:
