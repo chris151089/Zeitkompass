@@ -14,11 +14,15 @@ const FACING_HYSTERESIS := 0.7
 
 ## Neue Geschwindigkeit: beschleunigt Richtung Eingabe bzw. bremst ohne Eingabe ab.
 ## input wird auf Länge 1 begrenzt, damit diagonal nicht schneller gelaufen wird.
-static func approach_velocity(current: Vector2, input: Vector2, data: MovementData, delta: float) -> Vector2:
+## running = true nutzt run_speed statt max_speed.
+static func approach_velocity(
+	current: Vector2, input: Vector2, data: MovementData, delta: float, running: bool = false
+) -> Vector2:
 	var direction := input.limit_length(1.0)
 	if direction.is_zero_approx():
 		return current.move_toward(Vector2.ZERO, data.friction * delta)
-	return current.move_toward(direction * data.max_speed, data.acceleration * delta)
+	var speed := data.run_speed if running else data.max_speed
+	return current.move_toward(direction * speed, data.acceleration * delta)
 
 
 ## Blickrichtung zu einem Bewegungsvektor, mit Hysterese gegenüber previous.

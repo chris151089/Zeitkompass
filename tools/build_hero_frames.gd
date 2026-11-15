@@ -3,13 +3,18 @@
 ##
 ## Animationen heißen <aktion>_<down|left|right|up> (z. B. walk_left). Die Frame-Dauern
 ## stammen aus der JSON (duration_ms). hit_active/invulnerable bleiben in der JSON und
-## werden in M2 vom Kampfsystem gelesen (HeroSheet.frame_flags()).
+## werden in M2 vom Kampfsystem gelesen.
+##
+## Zusätzlich abgeleitet: „run“ = die Anlauf-Frames von „sprint“ als Schleife
+## (laut JSON-Notiz: „Spalten 11-12 Anlauf (waehrend des Sprints loopen)“).
 extends SceneTree
 
 const JSON_PATH := "res://assets/sprites/hero/hero_sheet.json"
 const OUT := "res://assets/sprites/hero/hero_frames.tres"
 ## Basistakt: 1 Frame-„Einheit“ = 10 ms, Frame-Dauer = duration_ms / 10.
 const BASE_FPS := 100.0
+## Abgeleitete Animationen: Name -> [Quelle, Anzahl Frames vom Anfang, Schleife]
+const DERIVED := {"run": ["sprint", 2, true]}
 
 
 func _init() -> void:
@@ -18,8 +23,13 @@ func _init() -> void:
 	var cell := Vector2(sheet.cell_width, sheet.cell_height)
 	var frames := SpriteFrames.new()
 	frames.remove_animation(&"default")
-	for action: String in sheet.animations:
-		var spec: Dictionary = sheet.animations[action]
+	var animations: Dictionary = sheet.animations.duplicate(true)
+	for derived: String in DERIVED:
+		var d: Array = DERIVED[derived]
+		var source: Dictionary = sheet.animations[d[0]]
+		animations[derived] = {"frames": source.frames.slice(0, d[1]), "loop": d[2]}
+	for action: String in animations:
+		var spec: Dictionary = animations[action]
 		for direction: String in sheet.rows:
 			var anim := StringName("%s_%s" % [action, direction])
 			frames.add_animation(anim)

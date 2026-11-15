@@ -15,7 +15,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
-	for action in [&"move_left", &"move_right", &"move_up", &"move_down"]:
+	for action in [&"move_left", &"move_right", &"move_up", &"move_down", &"sprint"]:
 		Input.action_release(action)
 
 
@@ -50,6 +50,36 @@ func test_walks_right_and_switches_states() -> void:
 	assert_eq(sprite.animation, &"idle_right")
 	assert_gt(player.global_position.x, start.x + 20.0, "ist nach rechts gelaufen")
 	assert_eq(player.velocity, Vector2.ZERO, "steht wieder")
+
+
+func test_running_is_faster_than_walking() -> void:
+	_teleport(Vector2(120, 300))
+	await _hold(&"move_right", 0.6)
+	var walked := player.global_position.x - 120.0
+	await wait_seconds(0.3)
+	_teleport(Vector2(120, 300))
+	Input.action_press(&"sprint")
+	Input.action_press(&"move_right")
+	await wait_seconds(0.3)
+	assert_eq(player.state_machine.current_state_name(), &"Run")
+	assert_eq(player.get_node("Sprite").animation, &"run_right")
+	await wait_seconds(0.3)
+	Input.action_release(&"move_right")
+	var ran := player.global_position.x - 120.0
+	assert_gt(ran, walked * 1.3, "rennt deutlich weiter als er geht (%.0f vs %.0f px)" % [ran, walked])
+	Input.action_release(&"sprint")
+	await wait_seconds(0.4)
+	assert_eq(player.state_machine.current_state_name(), &"Idle")
+
+
+func test_releasing_sprint_returns_to_walking() -> void:
+	_teleport(Vector2(120, 300))
+	Input.action_press(&"sprint")
+	Input.action_press(&"move_right")
+	await wait_seconds(0.2)
+	Input.action_release(&"sprint")
+	await wait_seconds(0.1)
+	assert_eq(player.state_machine.current_state_name(), &"Move")
 
 
 func test_walking_left_uses_left_animation() -> void:

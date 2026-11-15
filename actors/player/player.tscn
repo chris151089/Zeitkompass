@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://actors/player/player.gd" id="1_player"]
 [ext_resource type="Resource" path="res://data/player/player_movement.tres" id="2_move"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://actors/player/states/player_idle.gd" id="5_idle"]
 [ext_resource type="Script" path="res://actors/player/states/player_move.gd" id="6_move"]
 [ext_resource type="Script" path="res://actors/common/follow_camera.gd" id="7_cam"]
+[ext_resource type="Script" path="res://actors/player/states/player_run.gd" id="8_run"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_feet"]
 size = Vector2(10, 6)
@@ -39,3 +40,6 @@ script = ExtResource("5_idle")
 
 [node name="Move" type="Node" parent="StateMachine"]
 script = ExtResource("6_move")
+
+[node name="Run" type="Node" parent="StateMachine"]
+script = ExtResource("8_run")

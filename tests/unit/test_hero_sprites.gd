@@ -28,6 +28,16 @@ func test_frame_counts_and_durations_match_json() -> void:
 			assert_almost_eq(seconds * 1000.0, float(spec.frames[i].duration_ms), 0.01, "%s Frame %d" % [action, i])
 
 
+func test_run_loops_the_sprint_windup_frames() -> void:
+	for dir in ["down", "left", "right", "up"]:
+		var anim := StringName("run_" + dir)
+		assert_true(FRAMES.has_animation(anim), String(anim))
+		assert_eq(FRAMES.get_frame_count(anim), 2)
+		assert_true(FRAMES.get_animation_loop(anim))
+	var first: AtlasTexture = FRAMES.get_frame_texture(&"run_right", 0)
+	assert_eq(int(first.region.position.x) / 64, int(sheet.animations.sprint.frames[0].column))
+
+
 func test_frames_use_correct_sheet_cells() -> void:
 	var atlas: AtlasTexture = FRAMES.get_frame_texture(&"walk_up", 2)
 	var col: int = sheet.animations.walk.frames[2].column

@@ -62,10 +62,10 @@ ergänzen. Jede Spiel-Aktion braucht Tastatur **und** Controller.
 | Aktion | Tastatur | Controller |
 | --- | --- | --- |
 | `move_*` | WASD / Pfeile | linker Stick / D-Pad |
-| `attack` | J | X |
+| `attack` | J | LT (vorläufig, in M2 endgültig festlegen) |
 | `dodge` | K / Shift | B |
 | `jump` | Leertaste | A |
-| `sprint` | L | LT |
+| `sprint` (Rennen, halten) | L | X |
 | `echo_cast` | I | RT |
 | `echo_prev` / `echo_next` | Q / R | LB / RB |
 | `interact` | E / Enter | Y |

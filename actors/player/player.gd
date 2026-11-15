@@ -17,9 +17,13 @@ func get_move_input() -> Vector2:
 	return Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
 
 
+func is_run_held() -> bool:
+	return Input.is_action_pressed(&"sprint")
+
+
 ## Bewegt den Helden einen Physik-Schritt (input = Vector2.ZERO bremst ab).
-func apply_movement(input: Vector2, delta: float) -> void:
-	velocity = TopDownMotion.approach_velocity(velocity, input, movement, delta)
+func apply_movement(input: Vector2, delta: float, running: bool = false) -> void:
+	velocity = TopDownMotion.approach_velocity(velocity, input, movement, delta, running)
 	move_and_slide()
 
 

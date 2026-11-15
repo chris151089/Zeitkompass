@@ -12,6 +12,9 @@ func physics_update(delta: float) -> void:
 	if input.is_zero_approx():
 		state_machine.transition_to(&"Idle")
 		return
+	if _player.is_run_held():
+		state_machine.transition_to(&"Run")
+		return
 	_player.update_facing(input)
 	_player.apply_movement(input, delta)
 	var anim_speed := maxf(MIN_ANIMATION_SPEED, input.length())

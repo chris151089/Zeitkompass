@@ -51,6 +51,28 @@ func test_no_keyboard_key_bound_twice() -> void:
 				seen[key] = action
 
 
+func test_no_controller_input_bound_twice() -> void:
+	var seen := {}
+	for action in GAMEPLAY_ACTIONS:
+		for e in InputMap.action_get_events(action):
+			var key := ""
+			if e is InputEventJoypadButton:
+				key = "button %d" % e.button_index
+			elif e is InputEventJoypadMotion:
+				key = "axis %d %s" % [e.axis, signf(e.axis_value)]
+			else:
+				continue
+			assert_false(seen.has(key), "Controller %s doppelt (%s, %s)" % [key, seen.get(key), action])
+			seen[key] = action
+
+
+func test_run_is_on_xbox_x() -> void:
+	var on_x := InputMap.action_get_events(&"sprint").any(
+		func(e): return e is InputEventJoypadButton and e.button_index == JOY_BUTTON_X
+	)
+	assert_true(on_x, "Rennen liegt auf X (Xbox)")
+
+
 func test_move_vector_from_simulated_input() -> void:
 	Input.action_press(&"move_right")
 	Input.action_press(&"move_up")

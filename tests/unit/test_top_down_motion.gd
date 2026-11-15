@@ -26,6 +26,14 @@ func test_accelerates_to_max_speed_and_stays_there() -> void:
 	assert_almost_eq(v, Vector2(100, 0), Vector2(0.001, 0.001))
 
 
+func test_running_uses_run_speed() -> void:
+	data.run_speed = 160.0
+	var v := Vector2.ZERO
+	for i in 60:
+		v = TopDownMotion.approach_velocity(v, Vector2(1, 1), data, DT, true)
+	assert_almost_eq(v.length(), 160.0, 0.001, "rennt mit run_speed, auch diagonal nicht schneller")
+
+
 func test_acceleration_is_gradual() -> void:
 	var v := _run(Vector2.RIGHT, 1)
 	assert_almost_eq(v.x, 1000.0 * DT, 0.001, "ein Frame Beschleunigung")

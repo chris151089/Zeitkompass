@@ -32,10 +32,10 @@ const ACTIONS := {
 		"joy_axes": [[JOY_AXIS_LEFT_X, 1.0]],
 	},
 	# Kampf
-	"attack": {"keys": [KEY_J], "joy_buttons": [JOY_BUTTON_X], "joy_axes": []},
+	"attack": {"keys": [KEY_J], "joy_buttons": [], "joy_axes": [[JOY_AXIS_TRIGGER_LEFT, 1.0]]},
 	"dodge": {"keys": [KEY_K, KEY_SHIFT], "joy_buttons": [JOY_BUTTON_B], "joy_axes": []},
 	"jump": {"keys": [KEY_SPACE], "joy_buttons": [JOY_BUTTON_A], "joy_axes": []},
-	"sprint": {"keys": [KEY_L], "joy_buttons": [], "joy_axes": [[JOY_AXIS_TRIGGER_LEFT, 1.0]]},
+	"sprint": {"keys": [KEY_L], "joy_buttons": [JOY_BUTTON_X], "joy_axes": []},
 	# Echo-Magie
 	"echo_cast": {"keys": [KEY_I], "joy_buttons": [], "joy_axes": [[JOY_AXIS_TRIGGER_RIGHT, 1.0]]},
 	"echo_prev": {"keys": [KEY_Q], "joy_buttons": [JOY_BUTTON_LEFT_SHOULDER], "joy_axes": []},
