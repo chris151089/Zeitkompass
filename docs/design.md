@@ -127,7 +127,7 @@ Sieben Etappen bis zum Vertical Slice. Ein Meilenstein gilt erst als fertig, wen
 1. **M0 – Setup** ✅ (abgeschlossen 2026-11-15)
     - Godot-Projekt mit Ordnerstruktur, Git-Repository, Testframework läuft
     - Auflösung und Skalierung stimmen, getestet in 1080p, 1440p und 4K, Input-Map für Controller und Tastatur angelegt
-2. **M1 – Bewegung**
+2. **M1 – Bewegung** ✅ (abgeschlossen 2026-11-15)
     - Held läuft in 8 Richtungen mit Animationen, Kollision mit Wänden
     - Kamera folgt flüssig, Testkarte aus Kacheln
 3. **M2 – Kampf**

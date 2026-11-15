@@ -27,10 +27,9 @@ verbindlichen Regeln zusammen.
 
 - **Fertig:** M0 – Setup (Projekt, Ordner, GUT-Tests, Skalierung geprüft in 1080p/1440p/4K,
   Input-Map; vom Nutzer unter Windows mit Tastatur und Controller bestätigt)
-- **In Arbeit: M1 – Bewegung** – umgesetzt, wartet auf Test durch den Nutzer: Held läuft in
-  8 Richtungen (3 Sprite-Richtungen, links = gespiegelt), Kollision mit Klippen/Bäumen/Steinen,
-  Folge-Kamera ohne Pixel-Zittern, Testkarte `levels/test/movement_test.tscn`
-- **Danach: M2 – Kampf** – Held-Animationen liegen bereit (`combo` mit 3 Schlägen, `sprint`, `jump`,
+- **Fertig:** M1 – Bewegung (8 Richtungen, Gehen + Rennen, Kollision, weiche Folge-Kamera,
+  Testkarte `levels/test/movement_test.tscn`; vom Nutzer bestätigt)
+- **Als Nächstes: M2 – Kampf** – Held-Animationen liegen bereit (`combo` mit 3 Schlägen, `sprint`, `jump`,
   `roll` mit I-Frames); es fehlen noch Treffer- und Todesanimation des Helden. Gegner (Orks, Skelette
   aus Pixel Crawler) haben nur Seitenansicht und keine Angriffsanimation
 - **Offen für später (Held):** Es fehlen noch eine **Treffer-Animation** und eine **Todes-Animation**
