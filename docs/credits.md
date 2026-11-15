@@ -12,10 +12,12 @@ mit Quelle, Lizenz und ob Namensnennung nötig ist. Ohne Eintrag kein Commit.
 
 | Was | Quelle | Lizenz | Namensnennung | Wo im Projekt |
 | --- | --- | --- | --- | --- |
-| Forest Adventure Tileset 1.0 (Gelände, Wasser, Pflanzen, Gebäude; 32×32) | https://subtlecorpse.itch.io/forest-adventure | **noch eintragen** (Lizenztext von der itch.io-Seite) | **noch klären** | `assets/tilesets/forest_adventure/` |
-| Platzhalter-Held (eigene Grafik, wird ersetzt) | erzeugt mit `tools/build_player_placeholder.py` | eigene | – | `assets/sprites/player/` |
+| Pixel Crawler – Free Pack 0.1 (Anokolisa): Gelände, Bäume, Held, Gegner, NPCs | https://anokolisa.itch.io/free-pixel-art-asset-pack-topdown-tileset-rpg-16x16-sprites | eigene Bedingungen (`assets/packs/pixel_crawler/Terms.txt`): kommerzielle Nutzung erlaubt, Änderungen erlaubt, Grafiken dürfen nicht selbst weiterverkauft werden | nicht nötig, aber erwünscht (Kontakt: siehe Terms.txt) | `assets/packs/pixel_crawler/`, abgeleitet: `assets/sprites/hero/`, `assets/tilesets/`, `levels/props/` |
 
-> **Wichtig:** Gekaufte Asset-Pakete dürfen meist nicht öffentlich weitergegeben werden.
+Der Held ist der Grundkörper „Body_A“ aus dem Paket, per `tools/build_hero_sprites.py` umgefärbt
+(Haare, Tunika, Hose, Stiefel) – laut Terms.txt Punkt 2 erlaubt.
+
+> **Wichtig:** Asset-Pakete dürfen nicht als eigenständige Grafiken weitergegeben werden.
 > Das Repository ist privat – wird es jemals öffentlich, müssen die Pakete vorher raus.
 
 ## Musik & Sound

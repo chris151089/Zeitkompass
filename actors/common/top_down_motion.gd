@@ -38,3 +38,16 @@ static func facing_from_vector(v: Vector2, previous: Facing) -> Facing:
 
 static func facing_name(facing: Facing) -> StringName:
 	return FACING_NAMES[facing]
+
+
+## Sprite-Richtung für Sheets mit nur einer Seitenansicht (nach rechts):
+## [Animations-Suffix, horizontal spiegeln]
+static func sprite_direction(facing: Facing) -> Array:
+	match facing:
+		Facing.LEFT:
+			return [&"side", true]
+		Facing.RIGHT:
+			return [&"side", false]
+		Facing.UP:
+			return [&"up", false]
+	return [&"down", false]

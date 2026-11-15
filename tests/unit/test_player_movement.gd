@@ -41,29 +41,50 @@ func test_walks_right_and_switches_states() -> void:
 	await wait_seconds(0.5)
 	assert_eq(player.state_machine.current_state_name(), &"Move")
 	assert_eq(player.facing, TopDownMotion.Facing.RIGHT)
-	assert_eq(player.get_node("Sprite").animation, &"walk_right")
+	var sprite: AnimatedSprite2D = player.get_node("Sprite")
+	assert_eq(sprite.animation, &"walk_side")
+	assert_false(sprite.flip_h, "nach rechts nicht gespiegelt")
 	Input.action_release(&"move_right")
 	await wait_seconds(0.3)
 	assert_eq(player.state_machine.current_state_name(), &"Idle")
-	assert_eq(player.get_node("Sprite").animation, &"idle_right")
-	assert_gt(player.global_position.x, start.x + 30.0, "ist nach rechts gelaufen")
+	assert_eq(sprite.animation, &"idle_side")
+	assert_gt(player.global_position.x, start.x + 20.0, "ist nach rechts gelaufen")
 	assert_eq(player.velocity, Vector2.ZERO, "steht wieder")
 
 
+func test_walking_left_mirrors_side_sprite() -> void:
+	_teleport(Vector2(200, 220))
+	Input.action_press(&"move_left")
+	await wait_seconds(0.3)
+	var sprite: AnimatedSprite2D = player.get_node("Sprite")
+	assert_eq(sprite.animation, &"walk_side")
+	assert_true(sprite.flip_h, "nach links gespiegelt")
+
+
 func test_cliff_wall_blocks() -> void:
-	# links ist eine Felswand (Spalte 0, bis x = 32)
-	_teleport(Vector2(80, 368))
-	await _hold(&"move_left", 1.0)
-	assert_gt(player.global_position.x, 32.0, "nicht in die Wand gelaufen")
-	assert_lt(player.global_position.x, 60.0, "bis an die Wand gelaufen")
+	# Plateau in der Mitte: Kacheln x 20–28, Wand blockiert bis Zeile 20 (y < 336)
+	_teleport(Vector2(24 * 16, 390))
+	await _hold(&"move_up", 1.5)
+	assert_gte(player.global_position.y, 336.0, "nicht in die Wand gelaufen")
+	assert_lt(player.global_position.y, 350.0, "bis an die Wand gelaufen")
 
 
-func test_tree_trunk_blocks() -> void:
-	# Großer Baum auf Zelle (4, 7): Stamm-Kollision bei ca. y 238..252
-	_teleport(Vector2(145, 320))
+func test_prop_blocks() -> void:
+	# Eigener Stein an freier Stelle, Held läuft von unten dagegen
+	var rock: Node2D = load("res://levels/props/rock_mid.tscn").instantiate()
+	rock.position = Vector2(100, 250)
+	level.get_node("World").add_child(rock)
+	_teleport(Vector2(100, 300))
 	await _hold(&"move_up", 1.0)
-	assert_gt(player.global_position.y, 252.0, "steht unter dem Stamm")
-	assert_lt(player.global_position.y, 270.0, "ist bis zum Stamm gelaufen")
+	assert_gte(player.global_position.y, 250.0, "nicht durch den Stein")
+	assert_lt(player.global_position.y, 262.0, "bis zum Stein gelaufen")
+
+
+func test_world_bounds_block() -> void:
+	_teleport(Vector2(380, 420))
+	await _hold(&"move_down", 2.0)
+	var bottom: int = level.map_rect().end.y
+	assert_lte(player.global_position.y, float(bottom), "nicht aus der Karte gelaufen")
 
 
 func test_camera_follows_player() -> void:

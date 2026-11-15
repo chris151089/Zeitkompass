@@ -1,6 +1,6 @@
 ## Testbild für M0: prüft interne Auflösung, ganzzahlige Skalierung und Input-Map.
 ##
-## - 32×32-Kachelraster über die volle interne Auflösung (640×360 = 20×11,25 Kacheln)
+## - 16×16-Kachelraster über die volle interne Auflösung (320×180 = 20×11,25 Kacheln)
 ## - 1-Pixel-Rahmen und Schachbrett-Ecken: verschwommene oder doppelte Linien
 ##   bedeuten, dass nicht ganzzahlig skaliert wird
 ## - zeigt Fenstergröße, Skalierungsfaktor und die zuletzt gedrückte Aktion
@@ -9,7 +9,7 @@
 ## Beides geht nur im eigenen Fenster, nicht eingebettet im „Game“-Tab des Editors.
 extends Node2D
 
-const TILE := 32
+const TILE := 16
 const COLOR_BG_A := Color("1d1a2b")
 const COLOR_BG_B := Color("252238")
 const COLOR_GRID := Color("3d3860")
@@ -56,7 +56,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(_delta: float) -> void:
 	# Analoge Bewegung live anzeigen.
 	var move := Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
-	$Marker.position = Vector2(DisplaySettings.BASE_SIZE) / 2.0 + move * 48.0
+	$Marker.position = Vector2(DisplaySettings.BASE_SIZE) / 2.0 + move * 24.0
 
 
 func _draw() -> void:
@@ -77,9 +77,9 @@ func _draw() -> void:
 	draw_rect(Rect2(0, 0, 1, size.y), COLOR_BORDER)
 	draw_rect(Rect2(size.x - 1, 0, 1, size.y), COLOR_BORDER)
 	# 1-px-Schachbrett in den Ecken: muss in jeder Auflösung als feines, gleichmäßiges Muster erscheinen
-	for corner in [Vector2i(2, 2), Vector2i(size.x - 10, 2), Vector2i(2, size.y - 10), Vector2i(size.x - 10, size.y - 10)]:
-		for py in 8:
-			for px in 8:
+	for corner in [Vector2i(2, 2), Vector2i(size.x - 6, 2), Vector2i(2, size.y - 6), Vector2i(size.x - 6, size.y - 6)]:
+		for py in 4:
+			for px in 4:
 				if (px + py) % 2 == 0:
 					draw_rect(Rect2(corner.x + px, corner.y + py, 1, 1), COLOR_BORDER)
 

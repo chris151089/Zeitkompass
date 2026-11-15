@@ -1,4 +1,4 @@
-"""Prüft Screenshots auf pixelgenaue ganzzahlige Skalierung der internen Auflösung 640x360.
+"""Prüft Screenshots auf pixelgenaue ganzzahlige Skalierung der internen Auflösung 320x180.
 
 Jeder interne Pixel muss im Screenshot ein gleichfarbiger Block von Faktor x Faktor Pixeln sein,
 der Bereich außerhalb des Spielbilds schwarz. Aufruf: python3 check_scaling.py shot1.png ...
@@ -7,7 +7,7 @@ import sys
 
 from PIL import Image
 
-BASE_W, BASE_H = 640, 360
+BASE_W, BASE_H = 320, 180
 BORDER_COLOR = (242, 193, 78)  # 1-px-Rahmen des Testbilds
 
 

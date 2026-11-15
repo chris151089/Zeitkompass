@@ -1,65 +1,47 @@
-## Füllt die Testkarte levels/test/movement_test.tscn mit Kacheln.
+## Füllt die Testkarte levels/test/movement_test.tscn mit Kacheln und Props.
 ## Aufruf: godot --headless --script res://tools/build_movement_test_map.gd
 ##
-## Die Karte kann danach im Editor frei weiterbearbeitet werden – dieses Skript
-## überschreibt dann aber alle Änderungen an den Kachel-Ebenen.
+## Achtung: überschreibt alle Änderungen an Kacheln und Props der Testkarte.
 extends SceneTree
 
 const SCENE := "res://levels/test/movement_test.tscn"
-const SRC_ENV := 0
-const SRC_VEG := 1
-const SIZE := Vector2i(40, 24)
+const PROPS := "res://levels/props/"
+const SIZE := Vector2i(48, 30)  # Kacheln (16 px) -> 768 x 480 px
 
-## Erhöhte Felsplateaus ('#'). Unter jedem Plateau entsteht automatisch eine
-## 2 Kacheln hohe Klippenwand, die ebenfalls blockiert.
-const PLATEAU_RECTS: Array[Rect2i] = [
-	Rect2i(0, 0, 40, 2),    # oben
-	Rect2i(0, 0, 1, 24),    # links
-	Rect2i(39, 0, 1, 24),   # rechts
-	Rect2i(0, 23, 40, 1),   # unten
-	Rect2i(16, 9, 8, 3),    # Block in der Mitte
-	Rect2i(30, 16, 4, 2),   # kleiner Block rechts unten
+const SRC_FLOOR := 0
+const SRC_WALL := 1
+const SRC_VEG := 2
+
+## Gras (Floors_Tiles), zufällig gemischt. Zeile 11 ist dunkler (Schattengras) – nicht mischen.
+const GRASS: Array[Vector2i] = [Vector2i(1, 10), Vector2i(2, 10), Vector2i(3, 10)]
+
+## Klippen als gestreckte Blöcke: [Spalte, Zeile, Breite, Höhe (mind. 10), Farbe 0/6/12]
+## Zeilen: oben 0–1 Rand, 2–3 werden wiederholt, letzte 6 = Oberflächenrand + Wand + Grasrand.
+const CLIFFS := [
+	[-1, -4, 50, 12, 0],   # Felswand am oberen Kartenrand (sichtbar ab Zeile 0)
+	[20, 12, 9, 10, 0],    # Plateau in der Mitte
+	[35, 18, 6, 10, 6],    # graues Plateau rechts unten
 ]
 
-## Grasvarianten (FA_Environment), zufällig gemischt.
-const GRASS: Array[Vector2i] = [
-	Vector2i(4, 1), Vector2i(5, 1), Vector2i(6, 1),
-	Vector2i(4, 2), Vector2i(5, 2), Vector2i(6, 2),
+## Props: [Szene, x, y] in Pixeln (Fuß)
+const PROP_LIST := [
+	["tree_oak", 72, 170], ["tree_oak_yellow", 250, 150], ["tree_oak_orange", 600, 170],
+	["pine", 470, 140], ["pine_light", 690, 250], ["pine_slim", 300, 300],
+	["tree_dead", 180, 400], ["bush_small", 200, 180], ["bush_wide", 520, 230],
+	["bush_big", 120, 300], ["bush_small", 530, 440], ["rock_big", 400, 420],
+	["rock_mid", 260, 350], ["rock_small", 360, 210], ["rock_small", 230, 260],
+	["pine", 40, 460], ["pine_light", 730, 460], ["tree_oak", 520, 470],
 ]
 
-## Plateau-Oberfläche: Spalte 7 = linker Rand, 8 = Mitte, 9 = rechter Rand,
-## 10 = nur 1 Kachel breit; Zeile 0 = oberer Rand, 1 = Mitte, 2 = unterer Rand.
-## Klippenwand darunter: Zeilen 3 und 4 (gleiche Spalten).
-const CLIFF_LEFT := 7
-const CLIFF_MID := 8
-const CLIFF_RIGHT := 9
-const CLIFF_SINGLE := 10
+## Waldrand links/rechts/unten (rein optisch, die Kartenränder blockieren ohnehin)
+const BORDER_STEP := 28
 
-## Atlas-Koordinaten in FA_Vegetation (müssen zu build_forest_tileset.gd passen)
-const PLANT := {
-	"tree_big": Vector2i(0, 0), "tree_round": Vector2i(3, 1), "tree_slim": Vector2i(5, 1),
-	"pine_big": Vector2i(0, 4), "pine_mid": Vector2i(3, 5), "bush": Vector2i(7, 7),
-	"stump": Vector2i(7, 9), "grass_a": Vector2i(6, 4), "grass_b": Vector2i(7, 4),
-	"mushrooms_a": Vector2i(6, 5), "mushrooms_b": Vector2i(7, 5),
-	"flowers_a": Vector2i(6, 6), "flowers_b": Vector2i(7, 6), "fern": Vector2i(6, 7),
-}
-
-## Hindernisse mit Kollision (Ebene Objects, y-sortiert): [Pflanze oder Stein, x, y]
-const OBSTACLES := [
-	["tree_big", 4, 7], ["pine_big", 36, 6], ["tree_round", 27, 6], ["pine_mid", 6, 18],
-	["tree_slim", 13, 19], ["tree_big", 24, 20], ["pine_big", 36, 21], ["tree_round", 9, 13],
-	["bush", 8, 5], ["bush", 20, 6], ["bush", 28, 13], ["bush", 12, 16], ["stump", 31, 9],
-	["rock_a", 14, 6], ["rock_b", 33, 11], ["rock_small", 21, 17],
+## Deko-Kacheln (Vegetation): Blumen und Sprossen
+const DECOR_TILES: Array[Vector2i] = [
+	Vector2i(3, 23), Vector2i(3, 24), Vector2i(3, 25), Vector2i(3, 26), Vector2i(6, 24),
+	Vector2i(6, 26), Vector2i(1, 9), Vector2i(2, 9), Vector2i(2, 12), Vector2i(1, 13),
 ]
-const ROCK_TILES := {"rock_a": Vector2i(7, 12), "rock_b": Vector2i(8, 12), "rock_small": Vector2i(8, 13)}
-
-## Deko ohne Kollision (Ebene Decor, unter dem Helden)
-const DECOR := [
-	["flowers_a", 9, 9], ["flowers_a", 18, 19], ["flowers_a", 3, 14], ["flowers_b", 24, 7],
-	["flowers_b", 34, 14], ["mushrooms_a", 5, 11], ["mushrooms_b", 29, 21], ["fern", 17, 16],
-	["grass_a", 11, 8], ["grass_b", 22, 14], ["grass_a", 31, 5], ["grass_b", 3, 20],
-	["grass_a", 26, 16], ["fern", 35, 9],
-]
+const DECOR_COUNT := 60
 
 
 func _init() -> void:
@@ -67,29 +49,40 @@ func _init() -> void:
 	var ground: TileMapLayer = root.get_node("Ground")
 	var decor: TileMapLayer = root.get_node("Decor")
 	var cliffs: TileMapLayer = root.get_node("Cliffs")
-	var objects: TileMapLayer = root.get_node("World/Objects")
-	for layer in [ground, decor, cliffs, objects]:
+	var world: Node2D = root.get_node("World")
+	for layer in [ground, decor, cliffs]:
 		layer.clear()
+	for child in world.get_children():
+		if child.name != "Player":
+			world.remove_child(child)
+			child.free()
 
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 1234
+	rng.seed = 1607
 	for y in SIZE.y:
 		for x in SIZE.x:
-			ground.set_cell(Vector2i(x, y), SRC_ENV, GRASS[rng.randi() % GRASS.size()])
+			ground.set_cell(Vector2i(x, y), SRC_FLOOR, GRASS[rng.randi() % GRASS.size()])
 
-	_paint_cliffs(cliffs)
+	for c: Array in CLIFFS:
+		_stamp_cliff(cliffs, Vector2i(c[0], c[1]), Vector2i(c[2], c[3]), c[4])
 
-	for entry: Array in OBSTACLES:
-		var cell := Vector2i(entry[1], entry[2])
-		_assert_free(cliffs, cell, entry[0])
-		if ROCK_TILES.has(entry[0]):
-			objects.set_cell(cell, SRC_ENV, ROCK_TILES[entry[0]])
-		else:
-			objects.set_cell(cell, SRC_VEG, PLANT[entry[0]])
-	for entry: Array in DECOR:
-		var cell := Vector2i(entry[1], entry[2])
-		_assert_free(cliffs, cell, entry[0])
-		decor.set_cell(cell, SRC_VEG, PLANT[entry[0]])
+	var placed := 0
+	while placed < DECOR_COUNT:
+		var cell := Vector2i(rng.randi_range(1, SIZE.x - 2), rng.randi_range(8, SIZE.y - 2))
+		if cliffs.get_cell_source_id(cell) != -1 or decor.get_cell_source_id(cell) != -1:
+			continue
+		decor.set_cell(cell, SRC_VEG, DECOR_TILES[rng.randi() % DECOR_TILES.size()])
+		placed += 1
+
+	for p: Array in PROP_LIST:
+		_add_prop(root, world, p[0], Vector2(p[1], p[2]))
+	var w := SIZE.x * 16
+	var h := SIZE.y * 16
+	for x in range(-6, w + 6, BORDER_STEP):
+		_add_prop(root, world, "pine" if (x / BORDER_STEP) % 2 == 0 else "pine_light", Vector2(x, h + 6))
+	for y in range(150, h, BORDER_STEP):
+		_add_prop(root, world, "pine", Vector2(-8, y))
+		_add_prop(root, world, "pine_light", Vector2(w + 8, y))
 
 	var packed := PackedScene.new()
 	var err := packed.pack(root)
@@ -100,60 +93,30 @@ func _init() -> void:
 	quit(0 if err == OK else 1)
 
 
-func _is_plateau(cell: Vector2i) -> bool:
-	if cell.x < 0 or cell.y < 0 or cell.x >= SIZE.x or cell.y >= SIZE.y:
-		return true  # außerhalb der Karte gilt als Fels
-	for r in PLATEAU_RECTS:
-		if r.has_point(cell):
-			return true
-	return false
+func _add_prop(root: Node, world: Node2D, scene_name: String, pos: Vector2) -> void:
+	var prop: Node2D = (load(PROPS + scene_name + ".tscn") as PackedScene).instantiate(
+		PackedScene.GEN_EDIT_STATE_INSTANCE
+	)
+	prop.position = pos
+	world.add_child(prop, true)
+	prop.owner = root
 
 
-## 0 = keine Wand, 1 = obere Wandreihe, 2 = untere Wandreihe
-func _wall_row(cell: Vector2i) -> int:
-	if _is_plateau(cell):
-		return 0
-	if _is_plateau(cell + Vector2i.UP):
-		return 1
-	if _is_plateau(cell + Vector2i.UP * 2) and not _is_plateau(cell + Vector2i.UP):
-		return 2
-	return 0
-
-
-func _paint_cliffs(cliffs: TileMapLayer) -> void:
-	for y in SIZE.y:
-		for x in SIZE.x:
-			var cell := Vector2i(x, y)
-			if _is_plateau(cell):
-				var col := _edge_column(
-					not _is_plateau(cell + Vector2i.LEFT), not _is_plateau(cell + Vector2i.RIGHT)
-				)
-				var row := 1
-				if not _is_plateau(cell + Vector2i.UP):
-					row = 0
-				elif not _is_plateau(cell + Vector2i.DOWN):
-					row = 2
-				cliffs.set_cell(cell, SRC_ENV, Vector2i(col, row))
-				continue
-			var wall := _wall_row(cell)
-			if wall == 0:
-				continue
-			var col := _edge_column(
-				_wall_row(cell + Vector2i.LEFT) != wall, _wall_row(cell + Vector2i.RIGHT) != wall
-			)
-			cliffs.set_cell(cell, SRC_ENV, Vector2i(col, 2 + wall))
-
-
-func _edge_column(open_left: bool, open_right: bool) -> int:
-	if open_left and open_right:
-		return CLIFF_SINGLE
-	if open_left:
-		return CLIFF_LEFT
-	if open_right:
-		return CLIFF_RIGHT
-	return CLIFF_MID
-
-
-func _assert_free(cliffs: TileMapLayer, cell: Vector2i, what: String) -> void:
-	if cliffs.get_cell_source_id(cell) != -1:
-		push_error("%s bei %s liegt auf Fels/Klippe" % [what, cell])
+## Setzt einen Klippenblock beliebiger Größe aus dem 6x10-Vorbild in Wall_Tiles zusammen.
+func _stamp_cliff(layer: TileMapLayer, origin: Vector2i, size: Vector2i, color_col: int) -> void:
+	var src: TileSetAtlasSource = layer.tile_set.get_source(SRC_WALL)
+	for j in size.y:
+		var row := j
+		if j >= size.y - 6:
+			row = 4 + (j - (size.y - 6))
+		elif j >= 2:
+			row = 2 + (j - 2) % 2
+		for i in size.x:
+			var col := i
+			if i >= size.x - 2:
+				col = 4 + (i - (size.x - 2))
+			elif i >= 2:
+				col = 2 + (i - 2) % 2
+			var atlas := Vector2i(color_col + col, row)
+			if src.has_tile(atlas):
+				layer.set_cell(origin + Vector2i(i, j), SRC_WALL, atlas)

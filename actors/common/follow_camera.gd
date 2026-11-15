@@ -10,7 +10,7 @@ extends Camera2D
 ## Wie schnell die Kamera aufholt (höher = straffer).
 @export_range(0.5, 30.0, 0.5) var follow_speed: float = 7.0
 ## Versatz zum Ziel, z. B. damit die Figurmitte statt der Füße zentriert ist.
-@export var target_offset: Vector2 = Vector2(0, -16)
+@export var target_offset: Vector2 = Vector2(0, -12)
 
 var _smoothed: Vector2
 var _target: Node2D

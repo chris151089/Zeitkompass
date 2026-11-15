@@ -7,12 +7,14 @@ verbindlichen Regeln zusammen.
 ## Eckdaten
 
 - **Engine:** Godot **4.7.2** (stable), GDScript, Renderer „Compatibility“ (OpenGL)
-- **Interne Auflösung:** 640 × 360, ganzzahlig skaliert (720p ×2, 1080p ×3, 1440p ×4, 4K ×6);
+- **Interne Auflösung:** 320 × 180, ganzzahlig skaliert (720p ×4, 1080p ×6, 1440p ×8, 4K ×12);
   krumme Bildschirme bekommen schwarze Ränder, nie unscharfe Pixel
 - **Projekteinstellungen (nicht ändern):** Stretch `viewport`, Aspect `keep`, Scale Mode `integer`,
   Texturfilter `Nearest`, 2D-Pixel-Snapping an – abgesichert durch `tests/unit/test_project_settings.gd`
-- **Kachelgröße:** 32 × 32, Karten mit `TileMapLayer` (nicht das alte `TileMap`)
-- **Figuren:** ca. 32 × 48 Pixel
+- **Kachelgröße:** 16 × 16, Karten mit `TileMapLayer` (nicht das alte `TileMap`)
+- **Figuren:** ca. 16 × 30 Pixel in 64 × 64-Frames (Ursprung an den Füßen)
+- **Grafik:** „Pixel Crawler“ (Anokolisa, Free Pack) unverändert in `assets/packs/pixel_crawler/`;
+  daraus erzeugte Dateien in `assets/sprites/`, `assets/tilesets/`, `levels/props/`
 - **Ziel:** Windows-PC, später optional Linux/Web
 
 ## Aktueller Stand
@@ -20,11 +22,10 @@ verbindlichen Regeln zusammen.
 - **Fertig:** M0 – Setup (Projekt, Ordner, GUT-Tests, Skalierung geprüft in 1080p/1440p/4K,
   Input-Map; vom Nutzer unter Windows mit Tastatur und Controller bestätigt)
 - **In Arbeit: M1 – Bewegung** – umgesetzt, wartet auf Test durch den Nutzer: Held läuft in
-  8 Richtungen (Platzhalter-Grafik, 4 Blickrichtungen), Kollision mit Klippen/Bäumen/Steinen,
+  8 Richtungen (3 Sprite-Richtungen, links = gespiegelt), Kollision mit Klippen/Bäumen/Steinen,
   Folge-Kamera ohne Pixel-Zittern, Testkarte `levels/test/movement_test.tscn`
-- **Danach: M2 – Kampf**
-- **Grafik:** Gelände aus „Forest Adventure“ (`assets/tilesets/forest_adventure/`, 32×32).
-  Das Paket hat **keine Figuren** – Held ist ein Platzhalter, ein Figuren-Paket fehlt noch.
+- **Danach: M2 – Kampf** – Held-Animationen dafür liegen schon bereit (`slice`, `pierce`, `crush`,
+  `hit`, `death`); Gegner (Orks, Skelette) haben nur Seitenansicht und keine Angriffsanimation
 - Ein Meilenstein ist erst fertig, wenn **alle** Kriterien aus `docs/design.md` erfüllt sind –
   vorher nichts Neues anfangen. Abschnitt „Aktueller Stand“ nach jedem Meilenstein aktualisieren.
 
@@ -70,7 +71,10 @@ ergänzen. Jede Spiel-Aktion braucht Tastatur **und** Controller.
 - `actors/common/movement_data.gd`: Bewegungswerte als Resource (`data/player/player_movement.tres`)
 - `actors/common/follow_camera.gd`: Kamera mit Glättung **ohne** Pixel-Zittern – nicht durch
   `Camera2D.position_smoothing` ersetzen. Physik-Interpolation bleibt **aus** (verträgt sich nicht damit).
-- Animationen heißen `<aktion>_<richtung>`: `idle_down`, `walk_left`, … (4 Richtungen)
+- Animationen heißen `<aktion>_<down|side|up>`: `idle_down`, `walk_side`, … „side“ blickt nach
+  rechts, für links wird gespiegelt (`TopDownMotion.sprite_direction()`)
+- Props (Bäume, Büsche, Steine) sind Szenen in `levels/props/` – Ursprung am Fuß, in den y-sortierten
+  Knoten `World` ziehen. Kacheln: `assets/tilesets/pixel_crawler_tileset.tres`
 - Figuren-Ursprung = Füße (für Y-Sortierung); Kollisionsform nur an den Füßen
 - Physik-Ebenen: 1 = `world` (Kacheln), 2 = `player`
 
@@ -82,10 +86,11 @@ Erzeugte Dateien nicht von Hand ändern, sondern das Skript anpassen und neu aus
 | Skript | erzeugt |
 | --- | --- |
 | `generate_input_map.gd` | Input-Map in `project.godot` |
-| `build_forest_tileset.gd` | `assets/tilesets/forest_adventure/forest_tileset.tres` (Kollisionen, Animation) |
-| `build_player_placeholder.py` (Python + Pillow) | Platzhalter-Spritesheet des Helden |
-| `build_player_frames.gd` | `assets/sprites/player/player_frames.tres` |
-| `build_movement_test_map.gd` | Kacheln der Testkarte (überschreibt Änderungen im Editor!) |
+| `build_pixel_crawler_tileset.gd` | `assets/tilesets/pixel_crawler_tileset.tres` (Kollisionen) |
+| `build_props.gd` | Prop-Szenen in `levels/props/` |
+| `build_hero_sprites.py` (Python + Pillow) | eingekleideter Held `assets/sprites/hero/*.png` |
+| `build_hero_frames.gd` | `assets/sprites/hero/hero_frames.tres` |
+| `build_movement_test_map.gd` | Kacheln + Props der Testkarte (überschreibt Änderungen im Editor!) |
 
 ## Konventionen
 
@@ -104,7 +109,8 @@ Erzeugte Dateien nicht von Hand ändern, sondern das Skript anpassen und neu aus
 ## Tests
 
 - Framework: **GUT 9.7.1** (`addons/gut/`), Tests in `tests/` mit Präfix `test_`
-- Unit-Tests: `GODOT=/pfad/zu/godot ./run_tests.sh`
+- Unit-Tests: `GODOT=/pfad/zu/godot ./run_tests.sh` – schlägt auch bei Skript-/Parse-Fehlern fehl
+  (GUT selbst überspringt kaputte Testdateien sonst stillschweigend)
 - Skalierung per Screenshot (Linux mit Xvfb): `GODOT=/pfad/zu/godot tools/check_scaling.sh`
 - CI: `.github/workflows/tests.yml` führt beides bei jedem Push aus
 - Neue Logik möglichst als testbare, szenenunabhängige Funktionen schreiben und Tests mitliefern

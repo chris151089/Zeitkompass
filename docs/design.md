@@ -1,6 +1,6 @@
 # Design-Dokument: Action-RPG (Arbeitstitel „Zeitkompass“)
 
-Stand: 2026-11-14
+Stand: 2026-11-15 (Änderung: 16 × 16-Kacheln, 320 × 180, Grafik aus „Pixel Crawler“)
 
 ## Spielidee & Pitch
 
@@ -75,11 +75,11 @@ Godot 4 mit GDScript, ein Git-Repository von Tag eins an, Spieldaten als Godot-R
 **Eckdaten**
 
 - Engine: Godot 4 (aktuelle stabile Version), Sprache GDScript
-- Interne Auflösung: 640 × 360 Pixel – gleiche Breite wie To the Moon (640 × 480), aber im 16:9-Format, damit es auf modernen Bildschirmen und in 4K ohne Ränder und gestochen scharf skaliert
-- Skalierung: nur ganzzahlig, damit Pixel scharf bleiben – 720p = Faktor 2, 1080p = Faktor 3, 1440p = Faktor 4, **4K (3840 × 2160) = Faktor 6**
+- Interne Auflösung: 320 × 180 Pixel im 16:9-Format – nah am SNES (256 × 224), skaliert auf allen gängigen Bildschirmen bis 4K ohne Ränder und gestochen scharf
+- Skalierung: nur ganzzahlig, damit Pixel scharf bleiben – 720p = Faktor 4, 1080p = Faktor 6, 1440p = Faktor 8, **4K (3840 × 2160) = Faktor 12**
 - Godot-Einstellungen: Stretch Mode `viewport`, Aspect `keep`, Scale Mode `integer`, Texturfilter `Nearest`, Pixel-Snapping an
 - Optionsmenü: Auflösung (bis 4K), Vollbild / randloses Fenster, V-Sync; Bildschirme mit krummen Maßen bekommen schmale schwarze Ränder statt unscharfer Pixel
-- Kachelgröße: 32 × 32 Pixel (wie To the Moon), Karten mit TileMapLayer
+- Kachelgröße: 16 × 16 Pixel (sichtbar sind 20 × 11 Kacheln), Karten mit TileMapLayer
 - Steuerung: Controller und Tastatur über Input-Map-Aktionen (nie feste Tasten im Code)
 - Ziel-Plattform: Windows-PC, später optional Linux und Web
 
@@ -111,7 +111,8 @@ docs/            dieses Design-Dokument, Notizen
 
 Für den Vertical Slice reichen fertige Asset-Pakete aus einer einheitlichen Quelle. Eigene Grafik lohnt sich erst, wenn das Spiel trägt.
 
-- **Stil:** Pixel-Art in der Detailstufe von To the Moon, 32 × 32-Kacheln, Figuren etwa 32 × 48 Pixel, begrenzte Farbpalette für einen einheitlichen Look
+- **Stil:** Pixel-Art im SNES-Detailgrad, 16 × 16-Kacheln, Figuren etwa 16 × 30 Pixel (in 64 × 64-Frames), begrenzte Farbpalette für einen einheitlichen Look
+- **Grafikpaket:** „Pixel Crawler“ von Anokolisa (Free Pack) – Gelände, Bäume, Gegner, Held-Animationen. Der Held ist im Free Pack ein nackter Grundkörper und wird per Skript eingekleidet; später ggf. durch gekaufte Kleidungsebenen oder eigene Grafik ersetzen
 - **Quellen für Grafik:** itch.io (viele günstige Top-down-RPG-Pakete), OpenGameArt (kostenlos); möglichst alles von einem Künstler oder in einem Stil
 - **Eigene Grafik:** Aseprite zum Zeichnen und Animieren, Export als Spritesheet
 - **Musik und Sound:** fertige Pakete von itch.io oder Freesound; später eigene Musik oder Auftragsarbeit
@@ -173,6 +174,6 @@ Diese Datei als `docs/design.md` ins Projekt legen und in der `CLAUDE.md` darauf
 
 - [ ] Story: Vorschlag mit Zeitkompass übernehmen oder eigene Idee?
 - [ ] Name des Spiels und des Helden
-- [ ] Welches Asset-Paket bestimmt den Grafikstil?
+- [x] Welches Asset-Paket bestimmt den Grafikstil? → „Pixel Crawler“ (16 × 16)
 - [ ] Nur PC oder auch Web-Version (zum einfachen Teilen mit Testspielern)?
 - [ ] Wie viel Zeit pro Woche ist realistisch? Danach richtet sich, wie groß der erste Dungeon wird

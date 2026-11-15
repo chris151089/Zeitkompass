@@ -6,15 +6,15 @@ class_name DisplaySettings
 extends RefCounted
 
 ## Interne Auflösung des Spiels in Pixeln.
-const BASE_SIZE := Vector2i(640, 360)
+const BASE_SIZE := Vector2i(320, 180)
 
 ## Wählbare Fenstergrößen im Optionsmenü (alle ganzzahlige Vielfache von BASE_SIZE).
 const PRESETS: Array[Vector2i] = [
-	Vector2i(1280, 720),   # 720p,  Faktor 2
-	Vector2i(1920, 1080),  # 1080p, Faktor 3
-	Vector2i(2560, 1440),  # 1440p, Faktor 4
-	Vector2i(3200, 1800),  # 1800p, Faktor 5
-	Vector2i(3840, 2160),  # 4K,    Faktor 6
+	Vector2i(960, 540),    # Faktor 3
+	Vector2i(1280, 720),   # 720p,  Faktor 4
+	Vector2i(1920, 1080),  # 1080p, Faktor 6
+	Vector2i(2560, 1440),  # 1440p, Faktor 8
+	Vector2i(3840, 2160),  # 4K,    Faktor 12
 ]
 
 enum WindowMode { WINDOWED, BORDERLESS, FULLSCREEN }

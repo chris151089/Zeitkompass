@@ -30,9 +30,12 @@ func update_facing(direction: Vector2) -> void:
 		facing_changed.emit(facing)
 
 
-## Spielt "<base>_<richtung>", z. B. walk_left. speed_scale passt die Abspielgeschwindigkeit an.
+## Spielt "<base>_<down|side|up>", z. B. walk_side (links = gespiegelt).
+## speed_scale passt die Abspielgeschwindigkeit an.
 func play_animation(base: StringName, speed_scale: float = 1.0) -> void:
-	var anim := StringName("%s_%s" % [base, TopDownMotion.facing_name(facing)])
+	var dir := TopDownMotion.sprite_direction(facing)
+	var anim := StringName("%s_%s" % [base, dir[0]])
+	_sprite.flip_h = dir[1]
 	_sprite.speed_scale = speed_scale
 	if _sprite.animation != anim or not _sprite.is_playing():
 		_sprite.play(anim)

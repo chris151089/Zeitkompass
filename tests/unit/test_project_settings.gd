@@ -2,9 +2,9 @@ extends GutTest
 ## Schützt die Pixel-Art-Einstellungen aus docs/design.md vor versehentlichen Änderungen.
 
 
-func test_internal_resolution_is_640x360() -> void:
-	assert_eq(ProjectSettings.get_setting("display/window/size/viewport_width"), 640)
-	assert_eq(ProjectSettings.get_setting("display/window/size/viewport_height"), 360)
+func test_internal_resolution_is_320x180() -> void:
+	assert_eq(ProjectSettings.get_setting("display/window/size/viewport_width"), 320)
+	assert_eq(ProjectSettings.get_setting("display/window/size/viewport_height"), 180)
 	var base := Vector2i(
 		ProjectSettings.get_setting("display/window/size/viewport_width"),
 		ProjectSettings.get_setting("display/window/size/viewport_height"),
