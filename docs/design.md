@@ -122,7 +122,7 @@ Für den Vertical Slice reichen fertige Asset-Pakete aus einer einheitlichen Que
 
 Sieben Etappen bis zum Vertical Slice. Ein Meilenstein gilt erst als fertig, wenn alle Kriterien erfüllt sind – vorher wird nichts Neues angefangen.
 
-1. **M0 – Setup**
+1. **M0 – Setup** ✅ (abgeschlossen 2026-11-15)
     - Godot-Projekt mit Ordnerstruktur, Git-Repository, Testframework läuft
     - Auflösung und Skalierung stimmen, getestet in 1080p, 1440p und 4K, Input-Map für Controller und Tastatur angelegt
 2. **M1 – Bewegung**

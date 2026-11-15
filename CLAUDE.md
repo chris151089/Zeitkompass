@@ -17,7 +17,8 @@ verbindlichen Regeln zusammen.
 
 ## Aktueller Stand
 
-- **Fertig:** M0 – Setup (Projekt, Ordner, GUT-Tests, Skalierung geprüft in 1080p/1440p/4K, Input-Map)
+- **Fertig:** M0 – Setup (Projekt, Ordner, GUT-Tests, Skalierung geprüft in 1080p/1440p/4K,
+  Input-Map; vom Nutzer unter Windows mit Tastatur und Controller bestätigt)
 - **Als Nächstes: M1 – Bewegung:** Held läuft in 8 Richtungen mit Animationen, Kollision mit Wänden,
   Kamera folgt flüssig, Testkarte aus Kacheln
 - Ein Meilenstein ist erst fertig, wenn **alle** Kriterien aus `docs/design.md` erfüllt sind –
