@@ -36,6 +36,16 @@ func test_starts_idle_facing_down() -> void:
 	assert_eq(player.facing, TopDownMotion.Facing.DOWN)
 
 
+func test_movement_is_direct() -> void:
+	# Kaum Anlauf und kein Nachrutschen (wie in klassischen SNES-Action-RPGs)
+	Input.action_press(&"move_right")
+	await wait_physics_frames(4)
+	assert_gte(player.velocity.x, player.movement.max_speed * 0.99, "nach 4 Frames volles Tempo")
+	Input.action_release(&"move_right")
+	await wait_physics_frames(4)
+	assert_eq(player.velocity, Vector2.ZERO, "nach 4 Frames steht er")
+
+
 func test_walks_right_and_switches_states() -> void:
 	var start := player.global_position
 	Input.action_press(&"move_right")

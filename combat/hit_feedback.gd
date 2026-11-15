@@ -50,6 +50,32 @@ static func setup_flash(sprite: CanvasItem) -> void:
 	sprite.material = material
 
 
+## Kleine Staubwolke (z. B. wenn ein Gegner verschwindet). Räumt sich selbst auf.
+static func spawn_puff(parent: Node, position: Vector2, color: Color = Color(0.92, 0.9, 0.86)) -> void:
+	var puff := CPUParticles2D.new()
+	puff.position = position
+	puff.one_shot = true
+	puff.explosiveness = 0.9
+	puff.amount = 14
+	puff.lifetime = 0.45
+	puff.spread = 180.0
+	puff.direction = Vector2.UP
+	puff.initial_velocity_min = 18.0
+	puff.initial_velocity_max = 42.0
+	puff.gravity = Vector2(0, -30)
+	puff.damping_min = 40.0
+	puff.damping_max = 60.0
+	puff.scale_amount_min = 1.5
+	puff.scale_amount_max = 3.0
+	var ramp := Gradient.new()
+	ramp.set_color(0, color)
+	ramp.set_color(1, Color(color, 0.0))
+	puff.color_ramp = ramp
+	parent.add_child(puff)
+	puff.emitting = true
+	puff.finished.connect(puff.queue_free)
+
+
 static func flash(sprite: CanvasItem, color: Color = Color.WHITE, duration: float = 0.15) -> void:
 	var material := sprite.material as ShaderMaterial
 	if material == null:

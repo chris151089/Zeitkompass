@@ -53,7 +53,7 @@ func try_start_action(running: bool) -> bool:
 	if Input.is_action_just_pressed(&"dodge"):
 		state_machine.transition_to(&"Roll")
 	elif Input.is_action_just_pressed(&"jump"):
-		state_machine.transition_to(&"JumpAttack")
+		state_machine.transition_to(&"Jump")
 	elif Input.is_action_just_pressed(&"attack"):
 		state_machine.transition_to(&"SprintAttack" if running else &"Attack")
 	else:
@@ -65,6 +65,19 @@ func try_start_action(running: bool) -> bool:
 func apply_movement(input: Vector2, delta: float, running: bool = false) -> void:
 	velocity = TopDownMotion.approach_velocity(velocity, input, movement, delta, running)
 	move_and_slide()
+
+
+## Übernimmt nach Rolle/Sprung sofort das passende Tempo (kein Nachrutschen, kein Abbremsen).
+func carry_on_moving() -> void:
+	var input := get_move_input()
+	if input.is_zero_approx():
+		velocity = Vector2.ZERO
+		state_machine.transition_to(&"Idle")
+		return
+	var running := is_run_held()
+	var speed := movement.run_speed if running else movement.max_speed
+	velocity = input.limit_length(1.0) * speed
+	state_machine.transition_to(&"Run" if running else &"Move")
 
 
 ## Bremst mit der normalen Reibung ab.
@@ -106,8 +119,8 @@ func play_animation(base: StringName, speed_scale: float = 1.0) -> void:
 
 
 ## Startet "<base>_<richtung>" neu ab from_frame (für Angriffe, Rolle, Sprung).
-func restart_animation(base: StringName, from_frame: int = 0) -> void:
-	sprite.speed_scale = 1.0
+func restart_animation(base: StringName, from_frame: int = 0, speed_scale: float = 1.0) -> void:
+	sprite.speed_scale = speed_scale
 	sprite.play(_anim_name(base))
 	sprite.set_frame_and_progress(from_frame, 0.0)
 

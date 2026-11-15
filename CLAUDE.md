@@ -32,8 +32,9 @@ verbindlichen Regeln zusammen.
 - **Als Nächstes: M2 – Kampf** – Held-Animationen liegen bereit (`combo` mit 3 Schlägen, `sprint`, `jump`,
   `roll` mit I-Frames); es fehlen noch Treffer- und Todesanimation des Helden. Gegner (Orks, Skelette
   aus Pixel Crawler) haben nur Seitenansicht und keine Angriffsanimation
-- **Offen für später (Held):** Es fehlen noch eine **Treffer-Animation** und eine **Todes-Animation**
-  in allen 4 Richtungen – in `hero_sheet.png/.json` ergänzen, sobald der Nutzer sie liefert. Bis dahin
+- **Offen für später (Held):** Die **Lauf-Animation** ist zu steif (Stab/Arme in allen Frames gleich,
+  Beine fast unbewegt) – neue Lauf-Frames im Sheet nötig. Außerdem fehlen eine **Treffer-Animation** und
+  eine **Todes-Animation** in allen 4 Richtungen – in `hero_sheet.png/.json` ergänzen, sobald der Nutzer sie liefert. Bis dahin
   in M2 Treffer per Aufblinken + Rückstoß darstellen, Tod per Ausblenden.
 - Ein Meilenstein ist erst fertig, wenn **alle** Kriterien aus `docs/design.md` erfüllt sind –
   vorher nichts Neues anfangen. Abschnitt „Aktueller Stand“ nach jedem Meilenstein aktualisieren.
@@ -97,7 +98,9 @@ ergänzen. Jede Spiel-Aktion braucht Tastatur **und** Controller.
   (`health_changed`, `died`), `AttackData` (Resource: Schaden, Rückstoß, Hitstop, Wackeln, Trefferzone),
   `HitFeedback` (Hitstop über `Engine.time_scale`, Bildschirmwackeln über Gruppe `camera_shake`,
   Aufblitzen über `flash.gdshader`). Nach Tests/Szenenwechsel `HitFeedback.reset()`.
-- Kael: Zustände `Attack` (3er-Combo), `SprintAttack`, `JumpAttack`, `Roll`, `Hurt`, `Dead`.
+- Kael: Zustände `Attack` (3er-Combo), `SprintAttack`, `Jump` (A, behält den Schwung) → `JumpAttack`
+  (B in der Luft), `Roll` (volles Tempo bis zum Ende), `Hurt`, `Dead`. Nach Rolle/Sprung geht es über
+  `Player.carry_on_moving()` ohne Abbremsen weiter. Steuerung bewusst direkt (hohe Beschleunigung/Reibung).
   Treffer- und I-Frames kommen aus `hero_sheet.json` über `HeroSheet` – **nie** im Code nachbauen.
   Werte: `data/player/player_combat.tres` (`PlayerCombatData`).
 - Gegner: `actors/enemies/enemy.tscn` + Zustände in `actors/enemies/states/` (Idle, Chase, Strafe,

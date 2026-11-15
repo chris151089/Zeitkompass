@@ -80,7 +80,7 @@ func test_hit_enemy_is_knocked_back_and_dies_at_zero() -> void:
 	assert_eq(skel.state_machine.current_state_name(), &"Dead")
 	assert_signal_emitted(skel, "died")
 	await wait_seconds(2.5)
-	assert_false(is_instance_valid(skel), "nach Todesanimation entfernt")
+	assert_false(is_instance_valid(skel), "nach Todesanimation, Blinken und Staubwolke entfernt")
 
 
 func test_enemies_stop_when_player_is_dead() -> void:

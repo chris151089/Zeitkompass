@@ -12,10 +12,10 @@ extends Resource
 @export var jump_attack: AttackData
 ## Tempo des Sprintangriffs (Stoß nach vorn).
 @export var sprint_attack_speed: float = 170.0
-## Tempo des Sprungs nach vorn.
-@export var jump_attack_speed: float = 80.0
 ## Tempo der Ausweichrolle.
-@export var roll_speed: float = 150.0
+@export var roll_speed: float = 165.0
+## Abspieltempo der Rollen-Animation (< 1 = längere Rolle, mehr Strecke).
+@export_range(0.3, 2.0, 0.05) var roll_animation_speed: float = 0.75
 ## Wie lange Kael nach einem Treffer zurückgeschleudert wird.
 @export_range(0.0, 1.0, 0.01, "suffix:s") var hurt_time: float = 0.25
 ## Unverwundbar nach einem Treffer (Kael blinkt).

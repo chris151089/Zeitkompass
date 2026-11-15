@@ -92,13 +92,33 @@ func test_sprint_attack_from_running() -> void:
 	assert_eq(dummy.health.current, dummy.data.max_health - player.combat.sprint_attack.damage)
 
 
-func test_jump_attack_hits() -> void:
-	dummy = _spawn_dummy(Vector2(22, 0))
+func test_plain_jump_does_no_damage() -> void:
+	dummy = _spawn_dummy(Vector2(16, 0))
 	_face_right()
 	await _tap(&"jump")
+	assert_eq(player.state_machine.current_state_name(), &"Jump")
+	await wait_seconds(0.6)
+	assert_eq(dummy.health.current, dummy.data.max_health, "Sprung allein trifft nicht")
+	assert_eq(player.state_machine.current_state_name(), &"Idle", "gelandet")
+
+
+func test_attack_in_air_becomes_jump_attack() -> void:
+	dummy = _spawn_dummy(Vector2(16, 0))
+	_face_right()
+	await _tap(&"jump")
+	await _tap(&"attack")
 	assert_eq(player.state_machine.current_state_name(), &"JumpAttack")
 	await wait_seconds(0.6)
 	assert_eq(dummy.health.current, dummy.data.max_health - player.combat.jump_attack.damage)
+
+
+func test_jump_keeps_running_momentum() -> void:
+	Input.action_press(&"sprint")
+	Input.action_press(&"move_right")
+	await wait_seconds(0.25)
+	await _tap(&"jump")
+	assert_eq(player.state_machine.current_state_name(), &"Jump")
+	assert_almost_eq(player.velocity.x, player.movement.run_speed, 1.0, "springt mit Renntempo")
 
 
 func test_roll_has_invulnerability_frames() -> void:
@@ -113,7 +133,21 @@ func test_roll_has_invulnerability_frames() -> void:
 	assert_true(was_invulnerable, "während der Rolle unverwundbar")
 	await wait_seconds(0.3)
 	assert_false(player.is_invulnerable(), "danach wieder verwundbar")
-	assert_gt(player.global_position.x, start.x + 20.0, "Rolle bewegt nach vorn")
+	assert_gt(player.global_position.x, start.x + 50.0, "Rolle bewegt deutlich nach vorn")
+
+
+func test_roll_keeps_speed_and_continues_without_braking() -> void:
+	Input.action_press(&"move_right")
+	await wait_physics_frames(2)
+	await _tap(&"dodge")
+	var speeds: Array[float] = []
+	while player.state_machine.current_state_name() == &"Roll":
+		speeds.append(player.velocity.length())
+		await wait_physics_frames(1)
+	assert_almost_eq(speeds.min(), player.combat.roll_speed, 0.5, "volles Tempo bis zum Ende der Rolle")
+	await wait_physics_frames(1)
+	assert_eq(player.state_machine.current_state_name(), &"Move", "läuft direkt weiter")
+	assert_almost_eq(player.velocity.length(), player.movement.max_speed, 1.0, "sofort Gehtempo")
 
 
 func test_getting_hit_hurts_knocks_back_and_protects() -> void:

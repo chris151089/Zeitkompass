@@ -7,6 +7,6 @@ extends Resource
 ## Höchstgeschwindigkeit beim Rennen (Aktion „sprint“ gehalten).
 @export_range(0.0, 400.0, 1.0, "suffix:px/s") var run_speed: float = 120.0
 ## Beschleunigung beim Loslaufen und Richtungswechsel.
-@export_range(0.0, 5000.0, 10.0, "suffix:px/s²") var acceleration: float = 650.0
+@export_range(0.0, 5000.0, 10.0, "suffix:px/s²") var acceleration: float = 1800.0
 ## Abbremsen, wenn keine Eingabe anliegt.
-@export_range(0.0, 5000.0, 10.0, "suffix:px/s²") var friction: float = 900.0
+@export_range(0.0, 5000.0, 10.0, "suffix:px/s²") var friction: float = 2400.0
