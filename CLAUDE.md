@@ -16,7 +16,7 @@ verbindlichen Regeln zusammen.
   jeder Texel bleibt trotzdem ein scharfes, gleich großes Quadrat.
 - **Kachelgröße:** 16 × 16, Karten mit `TileMapLayer` (nicht das alte `TileMap`)
 - **Figuren:** ca. 16–25 × 30 Pixel in 64 × 64-Frames (Ursprung an den Füßen)
-- **Held:** eigenes Spritesheet `assets/sprites/hero/hero_sheet.png` + `hero_sheet.json`
+- **Held „Kael“:** eigenes (generiertes) Spritesheet `assets/sprites/hero/hero_sheet.png` + `hero_sheet.json`
   (4 Richtungen, idle/walk/combo/sprint/jump/roll, Frame-Dauern, `hit_active`/`invulnerable` je Frame,
   Fußpunkt `anchor`). Die JSON ist die Quelle der Wahrheit für Animation **und** Kampf-Timing (M2).
 - **Grafik:** „Pixel Crawler“ (Anokolisa, Free Pack) unverändert in `assets/packs/pixel_crawler/`;
@@ -33,6 +33,9 @@ verbindlichen Regeln zusammen.
 - **Danach: M2 – Kampf** – Held-Animationen liegen bereit (`combo` mit 3 Schlägen, `sprint`, `jump`,
   `roll` mit I-Frames); es fehlen noch Treffer- und Todesanimation des Helden. Gegner (Orks, Skelette
   aus Pixel Crawler) haben nur Seitenansicht und keine Angriffsanimation
+- **Offen für später (Held):** Es fehlen noch eine **Treffer-Animation** und eine **Todes-Animation**
+  in allen 4 Richtungen – in `hero_sheet.png/.json` ergänzen, sobald der Nutzer sie liefert. Bis dahin
+  in M2 Treffer per Aufblinken + Rückstoß darstellen, Tod per Ausblenden.
 - Ein Meilenstein ist erst fertig, wenn **alle** Kriterien aus `docs/design.md` erfüllt sind –
   vorher nichts Neues anfangen. Abschnitt „Aktueller Stand“ nach jedem Meilenstein aktualisieren.
 
