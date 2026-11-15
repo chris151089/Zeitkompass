@@ -1,0 +1,20 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://assets/packs/pixel_crawler/Environment/Props/Static/Vegetation.png" id="1_1n4sj"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_iwm3p"]
+size = Vector2(32, 10)
+
+[node name="BushBig" type="StaticBody2D" unique_id=254071153]
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="." unique_id=1703943926]
+texture = ExtResource("1_1n4sj")
+centered = false
+offset = Vector2(-21, -41)
+region_enabled = true
+region_rect = Rect2(2, 99, 43, 43)
+
+[node name="Collision" type="CollisionShape2D" parent="." unique_id=1145635237]
+position = Vector2(0, -5)
+shape = SubResource("RectangleShape2D_iwm3p")

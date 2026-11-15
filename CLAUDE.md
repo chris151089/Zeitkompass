@@ -1,0 +1,162 @@
+# CLAUDE.md – Zeitkompass
+
+2D-Action-RPG in Pixel-Art, top-down, Echtzeitkampf. **Das vollständige Design steht in
+[docs/design.md](docs/design.md) – vor jeder größeren Aufgabe lesen.** Diese Datei fasst nur die
+verbindlichen Regeln zusammen.
+
+## Eckdaten
+
+- **Engine:** Godot **4.7.2** (stable), GDScript, Renderer „Compatibility“ (OpenGL)
+- **Interne Auflösung:** 320 × 180, ganzzahlig skaliert (720p ×4, 1080p ×6, 1440p ×8, 4K ×12);
+  krumme Bildschirme bekommen schwarze Ränder, nie unscharfe Pixel
+- **Projekteinstellungen (nicht ändern):** Stretch `canvas_items`, Aspect `keep`, Scale Mode `integer`,
+  Texturfilter `Nearest`, 2D-Pixel-Snapping **aus**, Physik-Interpolation **an** – abgesichert durch
+  `tests/unit/test_project_settings.gd`. Grund: Mit `viewport` + Snapping sprang die Welt beim Scrollen
+  um ganze Spielpixel (bei ×6 sichtbares Ruckeln). So bewegen sich Kamera und Figuren stufenlos,
+  jeder Texel bleibt trotzdem ein scharfes, gleich großes Quadrat.
+- **Kachelgröße:** 16 × 16, Karten mit `TileMapLayer` (nicht das alte `TileMap`)
+- **Figuren:** ca. 16–25 × 30 Pixel in 64 × 64-Frames (Ursprung an den Füßen)
+- **Held „Kael“:** eigenes (generiertes) Spritesheet `assets/sprites/hero/hero_sheet.png` + `hero_sheet.json`
+  (4 Richtungen, idle/walk/combo/sprint/jump/roll, Frame-Dauern, `hit_active`/`invulnerable` je Frame,
+  Fußpunkt `anchor`). Die JSON ist die Quelle der Wahrheit für Animation **und** Kampf-Timing (M2).
+- **Grafik:** „Pixel Crawler“ (Anokolisa, Free Pack) unverändert in `assets/packs/pixel_crawler/`;
+  daraus erzeugte Dateien in `assets/sprites/`, `assets/tilesets/`, `levels/props/`
+- **Ziel:** Windows-PC, später optional Linux/Web
+
+## Aktueller Stand
+
+- **Fertig:** M0 – Setup (Projekt, Ordner, GUT-Tests, Skalierung geprüft in 1080p/1440p/4K,
+  Input-Map; vom Nutzer unter Windows mit Tastatur und Controller bestätigt)
+- **Fertig:** M1 – Bewegung (8 Richtungen, Gehen + Rennen, Kollision, weiche Folge-Kamera,
+  Testkarte `levels/test/movement_test.tscn`; vom Nutzer bestätigt)
+- **Als Nächstes: M2 – Kampf** – Held-Animationen liegen bereit (`combo` mit 3 Schlägen, `sprint`, `jump`,
+  `roll` mit I-Frames); es fehlen noch Treffer- und Todesanimation des Helden. Gegner (Orks, Skelette
+  aus Pixel Crawler) haben nur Seitenansicht und keine Angriffsanimation
+- **Offen für später (Held):** Die **Lauf-Animation** ist zu steif (Stab/Arme in allen Frames gleich,
+  Beine fast unbewegt) – neue Lauf-Frames im Sheet nötig. Außerdem fehlen eine **Treffer-Animation** und
+  eine **Todes-Animation** in allen 4 Richtungen – in `hero_sheet.png/.json` ergänzen, sobald der Nutzer sie liefert. Bis dahin
+  in M2 Treffer per Aufblinken + Rückstoß darstellen, Tod per Ausblenden.
+- Ein Meilenstein ist erst fertig, wenn **alle** Kriterien aus `docs/design.md` erfüllt sind –
+  vorher nichts Neues anfangen. Abschnitt „Aktueller Stand“ nach jedem Meilenstein aktualisieren.
+
+## Architektur-Regeln
+
+- **Autoloads nur für globale Dienste:** `GameState`, `SaveManager`, `AudioManager`,
+  `DialogueManager`, `SceneLoader` (in `autoload/`). Keine weiteren ohne guten Grund.
+- **Signale statt direkter Verweise** zwischen Szenen. Eltern dürfen Kinder direkt ansprechen,
+  Kinder melden sich per Signal nach oben („call down, signal up“).
+- **Hitbox/Hurtbox-System** (`combat/`) für **jeden** Schaden – Spieler, Gegner, Fallen.
+- **Zustandsautomat** für Spieler und Gegner (Idle, Laufen, Angriff, Rolle, Treffer, Tod).
+- **Daten getrennt vom Code:** Werte von Gegnern, Items, Echos als `.tres`-Resources in `data/`.
+  Keine Balancing-Zahlen im Code.
+- **Speicherstände** als JSON mit Versionsnummer (`SaveManager.SAVE_VERSION`) + Migration.
+- **Szenenwechsel** nur über `SceneLoader.change_scene()`, nie direkt `change_scene_to_file()`.
+  In Skripten, die auch von Generatoren (`--script`) geladen werden (z. B. Level-Skripte), Autoloads
+  über `get_node(^"/root/<Name>")` ansprechen – dort sind Autoload-Namen unbekannt.
+- **Eingaben nur über Input-Map-Aktionen**, nie feste Tasten im Code.
+
+## Input-Map
+
+Quelle der Wahrheit ist `tools/generate_input_map.gd`. Neue Aktion → dort eintragen, ausführen
+(`godot --headless --script res://tools/generate_input_map.gd`) und in `tests/unit/test_input_map.gd`
+ergänzen. Jede Spiel-Aktion braucht Tastatur **und** Controller.
+
+| Aktion | Tastatur | Controller |
+| --- | --- | --- |
+| `move_*` | WASD / Pfeile | linker Stick / D-Pad |
+| `attack` | J | B |
+| `dodge` (Rolle) | K / Shift | RT |
+| `jump` | Leertaste | A |
+| `sprint` (Rennen, halten) | L | X |
+| `echo_cast` | I | LT |
+| `echo_prev` / `echo_next` | Q / R | LB / RB |
+| `interact` | E / Enter | A (teilt sich A mit `jump`: vor etwas Benutzbarem gilt `interact`, ab M5) |
+| `inventory` | Tab | Back/Select |
+| `pause` | Esc | Start |
+| `toggle_fullscreen`, `debug_cycle_resolution` | F11, F2 | – |
+
+## Bausteine (ab M1)
+
+- `actors/common/state_machine.gd` + `state.gd`: Zustandsautomat; Zustände sind Kind-Knoten,
+  Knotenname = Zustandsname (`Idle`, `Move`, später `Attack`, `Roll`, …)
+- `actors/common/top_down_motion.gd`: reine Bewegungslogik (Beschleunigung, Blickrichtung) – testbar
+- `actors/common/movement_data.gd`: Bewegungswerte als Resource (`data/player/player_movement.tres`)
+- `actors/common/follow_camera.gd`: weiche Folge-Kamera im Physik-Takt (Godot interpoliert sie
+  zusammen mit den Figuren). **Nicht** auf ganze Pixel runden. Nach Teleports
+  `reset_physics_interpolation()` bzw. `snap_to_target()` aufrufen.
+- Animationen heißen `<aktion>_<down|left|right|up>`: `idle_down`, `walk_left`, `combo_up`, …
+- Props (Bäume, Büsche, Steine) sind Szenen in `levels/props/` – Ursprung am Fuß, in den y-sortierten
+  Knoten `World` ziehen. Kacheln: `assets/tilesets/pixel_crawler_tileset.tres`
+- Figuren-Ursprung = Füße (für Y-Sortierung); Kollisionsform nur an den Füßen
+- Physik-Ebenen: 1 = `world` (Kacheln, Props, Kartenränder), 2 = `player`, 3 = `enemy`,
+  4 = `player_hurtbox`, 5 = `enemy_hurtbox`. Spieler-Hitbox maskiert 5, Gegner-Hitbox maskiert 4.
+
+## Kampf (ab M2)
+
+- `combat/`: `Hitbox` (Szene `hitbox.tscn`, `activate(attack, richtung)` / `deactivate()`, trifft jede
+  Hurtbox pro Aktivierung einmal), `Hurtbox` (`invulnerable`, Signal `hurt(DamageInfo)`), `Health`
+  (`health_changed`, `died`), `AttackData` (Resource: Schaden, Rückstoß, Hitstop, Wackeln, Trefferzone),
+  `HitFeedback` (Hitstop über `Engine.time_scale`, Bildschirmwackeln über Gruppe `camera_shake`,
+  Aufblitzen über `flash.gdshader`). Nach Tests/Szenenwechsel `HitFeedback.reset()`.
+- Kael: Zustände `Attack` (3er-Combo), `SprintAttack`, `Jump` (A, behält den Schwung) → `JumpAttack`
+  (B in der Luft), `Comet` „Kometenstoß“ (Rennen → Sprung → B: waagerechter Flugstoß durch Gegner
+  hindurch, Funkenschweif), `Roll` (volles Tempo bis zum Ende), `Hurt`, `Dead`. Nach Rolle/Sprung geht es über
+  `Player.carry_on_moving()` ohne Abbremsen weiter. Steuerung bewusst direkt (hohe Beschleunigung/Reibung).
+  Treffer- und I-Frames kommen aus `hero_sheet.json` über `HeroSheet` – **nie** im Code nachbauen.
+  Werte: `data/player/player_combat.tres` (`PlayerCombatData`).
+- Gegner: `actors/enemies/enemy.tscn` + Zustände in `actors/enemies/states/` (Idle, Chase, Strafe,
+  Windup, Attack, Recover, Hurt, Dead); Typen als geerbte Szenen (`orc.tscn`, `skeleton.tscn`) mit
+  `EnemyData` in `data/enemies/`. Ausholen = rotes Aufleuchten (lesbare Vorwarnung). Ziel = Gruppe `player`.
+- HUD `ui/hud/` (Herzen, 2 LP je Herz), Neustart-Bildschirm `ui/game_over/`; beides verdrahtet das
+  Level-Skript `levels/test/test_level.gd`. Kampfarena: `levels/test/combat_test.tscn` (Startszene).
+
+## Generator-Skripte (`tools/`)
+
+Erzeugte Dateien nicht von Hand ändern, sondern das Skript anpassen und neu ausführen
+(`godot --headless --script res://tools/<name>.gd`, vorher einmal `godot --headless --import`):
+
+| Skript | erzeugt |
+| --- | --- |
+| `generate_input_map.gd` | Input-Map in `project.godot` |
+| `build_pixel_crawler_tileset.gd` | `assets/tilesets/pixel_crawler_tileset.tres` (Kollisionen) |
+| `build_props.gd` | Prop-Szenen in `levels/props/` |
+| `build_hero_frames.gd` | `assets/sprites/hero/hero_frames.tres` aus `hero_sheet.json` |
+| `build_enemy_sprites.py` (Python + Pillow) | Gegner-Sprites auf 64er-Zellen, Fußpunkt (32, 60) |
+| `build_enemy_frames.gd` | `assets/sprites/enemies/<name>/<name>_frames.tres` |
+| `build_ui_sprites.py` (Python + Pillow) | Herzen `assets/sprites/ui/hearts.png` |
+| `build_test_maps.gd` | Kacheln, Props, Gegner beider Testkarten (überschreibt Änderungen im Editor!) |
+
+## Konventionen
+
+- **Dateien und Ordner:** `snake_case` (`player.tscn`, `player.gd`); Szene und Skript gleichnamig
+  im selben Ordner
+- **Klassen:** `class_name` in `PascalCase`, nur wenn die Klasse woanders gebraucht wird
+- **Knoten im Szenenbaum:** `PascalCase` (`Hitbox`, `AnimationPlayer`)
+- **Signale:** `snake_case`, Vergangenheitsform für Ereignisse (`died`, `health_changed`,
+  `door_opened`); Handler heißen `_on_<knoten>_<signal>`
+- **Konstanten:** `UPPER_SNAKE_CASE`; private Member mit `_`-Präfix
+- **Statische Typen** überall (`var speed: float`, `-> void`)
+- **Resources:** Skript `*_data.gd` (`class_name EnemyData`), Instanzen in `data/<typ>/<name>.tres`
+- **Sprache:** Code-Bezeichner Englisch, Kommentare und Doku Deutsch
+- **Debug-/Testszenen** in `levels/test/`
+
+## Tests
+
+- Framework: **GUT 9.7.1** (`addons/gut/`), Tests in `tests/` mit Präfix `test_`
+- Unit-Tests: `GODOT=/pfad/zu/godot ./run_tests.sh` – schlägt auch bei Skript-/Parse-Fehlern fehl
+  (GUT selbst überspringt kaputte Testdateien sonst stillschweigend)
+- Skalierung per Screenshot (Linux mit Xvfb): `GODOT=/pfad/zu/godot tools/check_scaling.sh`
+- CI: `.github/workflows/tests.yml` führt beides bei jedem Push aus
+- Neue Logik möglichst als testbare, szenenunabhängige Funktionen schreiben und Tests mitliefern
+
+## Assets & Lizenzen
+
+- Jedes fremde Asset mit Quelle und Lizenz in [docs/credits.md](docs/credits.md) eintragen
+- **Tabu:** keine Grafiken, Musik, Namen oder Texte aus Terranigma oder anderen Spielen
+
+## Arbeitsweise
+
+1. Pro Session ein Meilenstein oder eine Teilaufgabe, nie „das ganze Spiel“
+2. Erst einen kurzen Plan schreiben, dann umsetzen
+3. Tests laufen lassen; der Nutzer testet selbst in Godot und gibt Feedback
+4. Funktioniert es: Git-Commit mit klarer Nachricht
