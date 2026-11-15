@@ -77,7 +77,7 @@ Godot 4 mit GDScript, ein Git-Repository von Tag eins an, Spieldaten als Godot-R
 - Engine: Godot 4 (aktuelle stabile Version), Sprache GDScript
 - Interne Auflösung: 320 × 180 Pixel im 16:9-Format – nah am SNES (256 × 224), skaliert auf allen gängigen Bildschirmen bis 4K ohne Ränder und gestochen scharf
 - Skalierung: nur ganzzahlig, damit Pixel scharf bleiben – 720p = Faktor 4, 1080p = Faktor 6, 1440p = Faktor 8, **4K (3840 × 2160) = Faktor 12**
-- Godot-Einstellungen: Stretch Mode `viewport`, Aspect `keep`, Scale Mode `integer`, Texturfilter `Nearest`, Pixel-Snapping an
+- Godot-Einstellungen: Stretch Mode `canvas_items`, Aspect `keep`, Scale Mode `integer`, Texturfilter `Nearest`, Pixel-Snapping aus, Physik-Interpolation an – weiches Scrollen in Bruchteilen eines Spielpixels, Texel bleiben scharf (geändert nach Test: `viewport` + Snapping ruckelte beim Scrollen)
 - Optionsmenü: Auflösung (bis 4K), Vollbild / randloses Fenster, V-Sync; Bildschirme mit krummen Maßen bekommen schmale schwarze Ränder statt unscharfer Pixel
 - Kachelgröße: 16 × 16 Pixel (sichtbar sind 20 × 11 Kacheln), Karten mit TileMapLayer
 - Steuerung: Controller und Tastatur über Input-Map-Aktionen (nie feste Tasten im Code)

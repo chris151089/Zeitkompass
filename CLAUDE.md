@@ -9,8 +9,11 @@ verbindlichen Regeln zusammen.
 - **Engine:** Godot **4.7.2** (stable), GDScript, Renderer „Compatibility“ (OpenGL)
 - **Interne Auflösung:** 320 × 180, ganzzahlig skaliert (720p ×4, 1080p ×6, 1440p ×8, 4K ×12);
   krumme Bildschirme bekommen schwarze Ränder, nie unscharfe Pixel
-- **Projekteinstellungen (nicht ändern):** Stretch `viewport`, Aspect `keep`, Scale Mode `integer`,
-  Texturfilter `Nearest`, 2D-Pixel-Snapping an – abgesichert durch `tests/unit/test_project_settings.gd`
+- **Projekteinstellungen (nicht ändern):** Stretch `canvas_items`, Aspect `keep`, Scale Mode `integer`,
+  Texturfilter `Nearest`, 2D-Pixel-Snapping **aus**, Physik-Interpolation **an** – abgesichert durch
+  `tests/unit/test_project_settings.gd`. Grund: Mit `viewport` + Snapping sprang die Welt beim Scrollen
+  um ganze Spielpixel (bei ×6 sichtbares Ruckeln). So bewegen sich Kamera und Figuren stufenlos,
+  jeder Texel bleibt trotzdem ein scharfes, gleich großes Quadrat.
 - **Kachelgröße:** 16 × 16, Karten mit `TileMapLayer` (nicht das alte `TileMap`)
 - **Figuren:** ca. 16 × 30 Pixel in 64 × 64-Frames (Ursprung an den Füßen)
 - **Grafik:** „Pixel Crawler“ (Anokolisa, Free Pack) unverändert in `assets/packs/pixel_crawler/`;
@@ -69,8 +72,9 @@ ergänzen. Jede Spiel-Aktion braucht Tastatur **und** Controller.
   Knotenname = Zustandsname (`Idle`, `Move`, später `Attack`, `Roll`, …)
 - `actors/common/top_down_motion.gd`: reine Bewegungslogik (Beschleunigung, Blickrichtung) – testbar
 - `actors/common/movement_data.gd`: Bewegungswerte als Resource (`data/player/player_movement.tres`)
-- `actors/common/follow_camera.gd`: Kamera mit Glättung **ohne** Pixel-Zittern – nicht durch
-  `Camera2D.position_smoothing` ersetzen. Physik-Interpolation bleibt **aus** (verträgt sich nicht damit).
+- `actors/common/follow_camera.gd`: weiche Folge-Kamera im Physik-Takt (Godot interpoliert sie
+  zusammen mit den Figuren). **Nicht** auf ganze Pixel runden. Nach Teleports
+  `reset_physics_interpolation()` bzw. `snap_to_target()` aufrufen.
 - Animationen heißen `<aktion>_<down|side|up>`: `idle_down`, `walk_side`, … „side“ blickt nach
   rechts, für links wird gespiegelt (`TopDownMotion.sprite_direction()`)
 - Props (Bäume, Büsche, Steine) sind Szenen in `levels/props/` – Ursprung am Fuß, in den y-sortierten

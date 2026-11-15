@@ -9,6 +9,8 @@ from PIL import Image
 
 BASE_W, BASE_H = 320, 180
 BORDER_COLOR = (242, 193, 78)  # 1-px-Rahmen des Testbilds
+# Textbereich des Testbilds (in Spielpixeln): Schrift wird in voller Auflösung gezeichnet
+TEXT_AREA = (12, 10, 310, 100)
 
 
 def check(path: str) -> bool:
@@ -20,6 +22,8 @@ def check(path: str) -> bool:
     bad = 0
     for by in range(BASE_H):
         for bx in range(BASE_W):
+            if TEXT_AREA[0] <= bx < TEXT_AREA[2] and TEXT_AREA[1] <= by < TEXT_AREA[3]:
+                continue
             x0, y0 = ox + bx * f, oy + by * f
             c = px[x0, y0]
             for dy in range(f):

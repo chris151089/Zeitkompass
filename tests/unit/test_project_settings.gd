@@ -12,8 +12,10 @@ func test_internal_resolution_is_320x180() -> void:
 	assert_eq(base, DisplaySettings.BASE_SIZE, "DisplaySettings.BASE_SIZE passt zum Projekt")
 
 
-func test_stretch_viewport_keep_integer() -> void:
-	assert_eq(ProjectSettings.get_setting("display/window/stretch/mode"), "viewport")
+func test_stretch_canvas_items_keep_integer() -> void:
+	# canvas_items statt viewport: weiches Scrollen in Bruchteilen eines Spielpixels,
+	# Texel bleiben durch ganzzahlige Skalierung + Nearest trotzdem scharf und gleich groß.
+	assert_eq(ProjectSettings.get_setting("display/window/stretch/mode"), "canvas_items")
 	assert_eq(ProjectSettings.get_setting("display/window/stretch/aspect"), "keep")
 	assert_eq(ProjectSettings.get_setting("display/window/stretch/scale_mode"), "integer")
 
@@ -28,9 +30,16 @@ func test_nearest_texture_filter() -> void:
 	)
 
 
-func test_pixel_snapping_enabled() -> void:
-	assert_true(ProjectSettings.get_setting("rendering/2d/snap/snap_2d_transforms_to_pixel"))
-	assert_true(ProjectSettings.get_setting("rendering/2d/snap/snap_2d_vertices_to_pixel"))
+func test_pixel_snapping_disabled_for_smooth_scrolling() -> void:
+	# Snapping rundet auf ganze *Spiel*pixel und lässt das Scrollen bei Faktor 6+ ruckeln.
+	# Scharf bleiben die Texel durch Nearest-Filter + ganzzahlige Skalierung.
+	assert_false(ProjectSettings.get_setting("rendering/2d/snap/snap_2d_transforms_to_pixel"))
+	assert_false(ProjectSettings.get_setting("rendering/2d/snap/snap_2d_vertices_to_pixel"))
+
+
+func test_physics_interpolation_enabled() -> void:
+	# Bewegung im 60-Hz-Physiktakt wird für jede Bildrate geglättet.
+	assert_true(ProjectSettings.get_setting("physics/common/physics_interpolation"))
 
 
 func test_autoloads_registered() -> void:

@@ -1,9 +1,9 @@
-## Kamera, die einem Ziel weich folgt, ohne dass das Ziel auf dem Bildschirm zittert.
+## Kamera, die einem Ziel weich folgt.
 ##
-## Problem bei Pixel-Art: Werden Kamera und Figur getrennt auf ganze Pixel gerundet,
-## springt die Figur beim Laufen um ±1 Pixel. Lösung: Nur der *Abstand* zwischen Kamera
-## und Ziel wird geglättet und gerundet; die Kamera sitzt immer auf der gerundeten
-## Zielposition plus diesem ganzzahligen Abstand.
+## Läuft im Physik-Takt; Godots Physik-Interpolation glättet Kamera und Figuren gemeinsam
+## zwischen den Physik-Schritten. Durch den Stretch-Modus „canvas_items“ darf die Kamera
+## auf Bruchteile eines Spielpixels stehen – das Scrollen bleibt so auch bei großem
+## Skalierungsfaktor (×6, ×8, ×12) gleichmäßig. Nicht auf ganze Pixel runden!
 class_name FollowCamera
 extends Camera2D
 
@@ -19,16 +19,17 @@ var _target: Node2D
 func _ready() -> void:
 	_target = get_parent() as Node2D
 	top_level = true
-	process_callback = Camera2D.CAMERA2D_PROCESS_IDLE
+	process_callback = Camera2D.CAMERA2D_PROCESS_PHYSICS
+	# Erst nach der Bewegung des Ziels im selben Physik-Schritt nachziehen.
+	process_physics_priority = 100
 	snap_to_target()
 
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if _target == null:
 		return
-	var goal := _target_position()
-	_smoothed = smooth_towards(_smoothed, goal, follow_speed, delta)
-	global_position = pixel_position(goal, _smoothed)
+	_smoothed = smooth_towards(_smoothed, _target_position(), follow_speed, delta)
+	global_position = _smoothed
 
 
 ## Springt ohne Glättung zum Ziel (z. B. nach Szenenwechsel oder Teleport).
@@ -36,8 +37,9 @@ func snap_to_target() -> void:
 	if _target == null:
 		return
 	_smoothed = _target_position()
-	global_position = _smoothed.round()
+	global_position = _smoothed
 	reset_smoothing()
+	reset_physics_interpolation()
 
 
 func _target_position() -> Vector2:
@@ -47,9 +49,3 @@ func _target_position() -> Vector2:
 ## Bildraten-unabhängige exponentielle Glättung.
 static func smooth_towards(current: Vector2, goal: Vector2, speed: float, delta: float) -> Vector2:
 	return goal + (current - goal) * exp(-speed * delta)
-
-
-## Kameraposition auf ganzen Pixeln: gerundetes Ziel + gerundeter Abstand.
-## Dadurch ändert sich die Bildschirmposition des Ziels nur, wenn sich der Abstand ändert.
-static func pixel_position(goal: Vector2, smoothed: Vector2) -> Vector2:
-	return goal.round() + (smoothed - goal).round()

@@ -22,6 +22,7 @@ func after_each() -> void:
 func _teleport(pos: Vector2) -> void:
 	player.global_position = pos
 	player.velocity = Vector2.ZERO
+	player.reset_physics_interpolation()
 
 
 func _hold(action: StringName, seconds: float) -> void:
