@@ -10,7 +10,13 @@ mit Quelle, Lizenz und ob Namensnennung nötig ist. Ohne Eintrag kein Commit.
 
 ## Grafik
 
-_noch keine_
+| Was | Quelle | Lizenz | Namensnennung | Wo im Projekt |
+| --- | --- | --- | --- | --- |
+| Forest Adventure Tileset 1.0 (Gelände, Wasser, Pflanzen, Gebäude; 32×32) | https://subtlecorpse.itch.io/forest-adventure | **noch eintragen** (Lizenztext von der itch.io-Seite) | **noch klären** | `assets/tilesets/forest_adventure/` |
+| Platzhalter-Held (eigene Grafik, wird ersetzt) | erzeugt mit `tools/build_player_placeholder.py` | eigene | – | `assets/sprites/player/` |
+
+> **Wichtig:** Gekaufte Asset-Pakete dürfen meist nicht öffentlich weitergegeben werden.
+> Das Repository ist privat – wird es jemals öffentlich, müssen die Pakete vorher raus.
 
 ## Musik & Sound
 

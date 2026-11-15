@@ -19,8 +19,12 @@ verbindlichen Regeln zusammen.
 
 - **Fertig:** M0 – Setup (Projekt, Ordner, GUT-Tests, Skalierung geprüft in 1080p/1440p/4K,
   Input-Map; vom Nutzer unter Windows mit Tastatur und Controller bestätigt)
-- **Als Nächstes: M1 – Bewegung:** Held läuft in 8 Richtungen mit Animationen, Kollision mit Wänden,
-  Kamera folgt flüssig, Testkarte aus Kacheln
+- **In Arbeit: M1 – Bewegung** – umgesetzt, wartet auf Test durch den Nutzer: Held läuft in
+  8 Richtungen (Platzhalter-Grafik, 4 Blickrichtungen), Kollision mit Klippen/Bäumen/Steinen,
+  Folge-Kamera ohne Pixel-Zittern, Testkarte `levels/test/movement_test.tscn`
+- **Danach: M2 – Kampf**
+- **Grafik:** Gelände aus „Forest Adventure“ (`assets/tilesets/forest_adventure/`, 32×32).
+  Das Paket hat **keine Figuren** – Held ist ein Platzhalter, ein Figuren-Paket fehlt noch.
 - Ein Meilenstein ist erst fertig, wenn **alle** Kriterien aus `docs/design.md` erfüllt sind –
   vorher nichts Neues anfangen. Abschnitt „Aktueller Stand“ nach jedem Meilenstein aktualisieren.
 
@@ -57,6 +61,31 @@ ergänzen. Jede Spiel-Aktion braucht Tastatur **und** Controller.
 | `inventory` | Tab | Back/Select |
 | `pause` | Esc | Start |
 | `toggle_fullscreen`, `debug_cycle_resolution` | F11, F2 | – |
+
+## Bausteine (ab M1)
+
+- `actors/common/state_machine.gd` + `state.gd`: Zustandsautomat; Zustände sind Kind-Knoten,
+  Knotenname = Zustandsname (`Idle`, `Move`, später `Attack`, `Roll`, …)
+- `actors/common/top_down_motion.gd`: reine Bewegungslogik (Beschleunigung, Blickrichtung) – testbar
+- `actors/common/movement_data.gd`: Bewegungswerte als Resource (`data/player/player_movement.tres`)
+- `actors/common/follow_camera.gd`: Kamera mit Glättung **ohne** Pixel-Zittern – nicht durch
+  `Camera2D.position_smoothing` ersetzen. Physik-Interpolation bleibt **aus** (verträgt sich nicht damit).
+- Animationen heißen `<aktion>_<richtung>`: `idle_down`, `walk_left`, … (4 Richtungen)
+- Figuren-Ursprung = Füße (für Y-Sortierung); Kollisionsform nur an den Füßen
+- Physik-Ebenen: 1 = `world` (Kacheln), 2 = `player`
+
+## Generator-Skripte (`tools/`)
+
+Erzeugte Dateien nicht von Hand ändern, sondern das Skript anpassen und neu ausführen
+(`godot --headless --script res://tools/<name>.gd`, vorher einmal `godot --headless --import`):
+
+| Skript | erzeugt |
+| --- | --- |
+| `generate_input_map.gd` | Input-Map in `project.godot` |
+| `build_forest_tileset.gd` | `assets/tilesets/forest_adventure/forest_tileset.tres` (Kollisionen, Animation) |
+| `build_player_placeholder.py` (Python + Pillow) | Platzhalter-Spritesheet des Helden |
+| `build_player_frames.gd` | `assets/sprites/player/player_frames.tres` |
+| `build_movement_test_map.gd` | Kacheln der Testkarte (überschreibt Änderungen im Editor!) |
 
 ## Konventionen
 

@@ -14,7 +14,7 @@ for r in "${RESOLUTIONS[@]}"; do
 	Xvfb :99 -screen 0 "${r}x24" >/dev/null 2>&1 &
 	xvfb_pid=$!
 	sleep 1
-	DISPLAY=:99 "$GODOT" --path . --resolution "$r" --position 0,0 >"$OUT/godot_$r.log" 2>&1 &
+	DISPLAY=:99 "$GODOT" --path . res://levels/test/resolution_test.tscn --resolution "$r" --position 0,0 >"$OUT/godot_$r.log" 2>&1 &
 	godot_pid=$!
 	sleep "${WAIT_SECONDS:-8}"
 	DISPLAY=:99 import -window root "$OUT/shot_$r.png"

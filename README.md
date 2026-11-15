@@ -7,7 +7,10 @@
 
 ## Starten
 
-Projekt in Godot 4.7.x öffnen (`project.godot`) und F5 drücken. Zurzeit startet das M0-Testbild:
+Projekt in Godot 4.7.x öffnen (`project.godot`) und F5 drücken. Zurzeit startet die Testkarte für
+M1 (Bewegung): Laufen mit WASD/Pfeiltasten oder linkem Stick/D-Pad.
+
+Das Auflösungs-Testbild aus M0 liegt in `levels/test/resolution_test.tscn` (öffnen und F6):
 F2 wechselt die Fenstergröße (720p → 4K), F11 schaltet Vollbild, alle Spiel-Aktionen werden angezeigt.
 
 **Hinweis:** Godot startet das Spiel standardmäßig eingebettet im Tab „Game“. Dort lassen sich

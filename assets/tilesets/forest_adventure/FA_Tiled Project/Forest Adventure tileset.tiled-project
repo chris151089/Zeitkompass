@@ -1,0 +1,14 @@
+{
+    "automappingRulesFile": "rules.txt",
+    "commands": [
+    ],
+    "compatibilityVersion": 1100,
+    "extensionsPath": "C:/Program Files/Tiled/plugins",
+    "folders": [
+        "."
+    ],
+    "properties": [
+    ],
+    "propertyTypes": [
+    ]
+}
