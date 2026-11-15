@@ -99,7 +99,8 @@ ergänzen. Jede Spiel-Aktion braucht Tastatur **und** Controller.
   `HitFeedback` (Hitstop über `Engine.time_scale`, Bildschirmwackeln über Gruppe `camera_shake`,
   Aufblitzen über `flash.gdshader`). Nach Tests/Szenenwechsel `HitFeedback.reset()`.
 - Kael: Zustände `Attack` (3er-Combo), `SprintAttack`, `Jump` (A, behält den Schwung) → `JumpAttack`
-  (B in der Luft), `Roll` (volles Tempo bis zum Ende), `Hurt`, `Dead`. Nach Rolle/Sprung geht es über
+  (B in der Luft), `Comet` „Kometenstoß“ (Rennen → Sprung → B: waagerechter Flugstoß durch Gegner
+  hindurch, Funkenschweif), `Roll` (volles Tempo bis zum Ende), `Hurt`, `Dead`. Nach Rolle/Sprung geht es über
   `Player.carry_on_moving()` ohne Abbremsen weiter. Steuerung bewusst direkt (hohe Beschleunigung/Reibung).
   Treffer- und I-Frames kommen aus `hero_sheet.json` über `HeroSheet` – **nie** im Code nachbauen.
   Werte: `data/player/player_combat.tres` (`PlayerCombatData`).

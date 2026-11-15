@@ -1,5 +1,6 @@
 ## Sprung (A). Kael behält dabei das Tempo vom Absprung.
-## Wird in der Luft angegriffen (B), geht es nahtlos in den Sprungangriff über.
+## Wird in der Luft angegriffen (B), geht es nahtlos in den Sprungangriff über –
+## kam der Sprung aus dem Rennen, stattdessen in den Kometenstoß.
 ## Frames der Animation „jump“ laut hero_sheet.json: 0 Absprung, 1 Scheitel, 2 Schlag, 3 Landung.
 ## Ein normaler Sprung überspringt den Schlag-Frame und landet direkt.
 extends State
@@ -25,7 +26,7 @@ func enter(_previous: StringName) -> void:
 func physics_update(_delta: float) -> void:
 	var frame := _player.sprite.frame
 	if not _landing and frame < AIR_FRAMES and Input.is_action_just_pressed(&"attack"):
-		state_machine.transition_to(&"JumpAttack")
+		state_machine.transition_to(&"Comet" if _player.jumped_from_run else &"JumpAttack")
 		return
 	if not _landing and frame >= STRIKE_FRAME:
 		_landing = true

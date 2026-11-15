@@ -13,6 +13,8 @@ signal died
 var facing: TopDownMotion.Facing = TopDownMotion.Facing.DOWN
 ## Rückstoß des letzten Treffers (vom Zustand Hurt verbraucht).
 var pending_knockback: Vector2 = Vector2.ZERO
+## true, wenn der aktuelle Sprung aus dem Rennen kam (dann wird B in der Luft zum Kometenstoß).
+var jumped_from_run: bool = false
 var _roll_invulnerable: bool = false
 var _hurt_invulnerable_time: float = 0.0
 
@@ -53,6 +55,7 @@ func try_start_action(running: bool) -> bool:
 	if Input.is_action_just_pressed(&"dodge"):
 		state_machine.transition_to(&"Roll")
 	elif Input.is_action_just_pressed(&"jump"):
+		jumped_from_run = running
 		state_machine.transition_to(&"Jump")
 	elif Input.is_action_just_pressed(&"attack"):
 		state_machine.transition_to(&"SprintAttack" if running else &"Attack")

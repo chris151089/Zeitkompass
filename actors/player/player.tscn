@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://actors/player/player.gd" id="1_player"]
 [ext_resource type="Resource" path="res://data/player/player_movement.tres" id="2_move"]
@@ -19,6 +19,7 @@
 [ext_resource type="Script" path="res://actors/player/states/player_hurt.gd" id="17_hurt"]
 [ext_resource type="Script" path="res://actors/player/states/player_dead.gd" id="18_dead"]
 [ext_resource type="Script" path="res://actors/player/states/player_jump.gd" id="19_jumpplain"]
+[ext_resource type="Script" path="res://actors/player/states/player_comet.gd" id="20_comet"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_feet"]
 size = Vector2(10, 6)
@@ -86,6 +87,9 @@ script = ExtResource("19_jumpplain")
 
 [node name="JumpAttack" type="Node" parent="StateMachine"]
 script = ExtResource("15_jump")
+
+[node name="Comet" type="Node" parent="StateMachine"]
+script = ExtResource("20_comet")
 
 [node name="Roll" type="Node" parent="StateMachine"]
 script = ExtResource("16_roll")

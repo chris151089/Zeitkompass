@@ -112,6 +112,31 @@ func test_attack_in_air_becomes_jump_attack() -> void:
 	assert_eq(dummy.health.current, dummy.data.max_health - player.combat.jump_attack.damage)
 
 
+func test_comet_thrust_from_running_jump() -> void:
+	Input.action_press(&"sprint")
+	Input.action_press(&"move_right")
+	await wait_seconds(0.2)
+	dummy = _spawn_dummy(Vector2(70, 0))
+	var start := player.global_position.x
+	await _tap(&"jump")
+	await _tap(&"attack")
+	assert_eq(player.state_machine.current_state_name(), &"Comet", "Rennen → Sprung → B = Kometenstoß")
+	Input.action_release(&"sprint")
+	Input.action_release(&"move_right")
+	await wait_seconds(0.6)
+	assert_eq(dummy.health.current, dummy.data.max_health - player.combat.comet_attack.damage, "trifft auf dem Weg")
+	assert_ne(player.state_machine.current_state_name(), &"Comet", "Stoß ist vorbei")
+	assert_gt(player.global_position.x - start, 85.0, "weit nach vorn geflogen – durch den Gegner hindurch")
+
+
+func test_jump_from_walking_still_gives_jump_attack() -> void:
+	Input.action_press(&"move_right")
+	await wait_seconds(0.1)
+	await _tap(&"jump")
+	await _tap(&"attack")
+	assert_eq(player.state_machine.current_state_name(), &"JumpAttack")
+
+
 func test_jump_keeps_running_momentum() -> void:
 	Input.action_press(&"sprint")
 	Input.action_press(&"move_right")

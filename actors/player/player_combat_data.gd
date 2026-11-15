@@ -12,6 +12,10 @@ extends Resource
 @export var jump_attack: AttackData
 ## Tempo des Sprintangriffs (Stoß nach vorn).
 @export var sprint_attack_speed: float = 170.0
+## Kometenstoß (Rennen → Sprung → Angriff in der Luft): Treffer, Flugtempo und -dauer.
+@export var comet_attack: AttackData
+@export var comet_speed: float = 260.0
+@export_range(0.05, 1.0, 0.01, "suffix:s") var comet_time: float = 0.35
 ## Tempo der Ausweichrolle.
 @export var roll_speed: float = 165.0
 ## Abspieltempo der Rollen-Animation (< 1 = längere Rolle, mehr Strecke).
