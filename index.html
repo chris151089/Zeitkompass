@@ -184,7 +184,7 @@
       <div class="field">
         <label for="setAutoPause">Automatische Pause (gesetzlich, ArbZG)</label>
         <select id="setAutoPause">
-          <option value="1">Ja: mind. 30 Min. ab 6 h, 45 Min. ab 9 h</option>
+          <option value="1">Ja: mind. 30 Min. ab 6 Std.</option>
           <option value="0">Nein, nur erfasste Pausen</option>
         </select>
       </div>
@@ -342,8 +342,8 @@
     let net = Math.max(0, gross - pause);
     let autoAdded = 0;
     if (state.settings.autoPause) {
-      // ArbZG §4: >6h → 30 min, >9h → 45 min total break. Deduct only the shortfall,
-      // and never push the worked time below the respective threshold.
+      // >6h → at least 30 min break. Deduct only the shortfall,
+      // and never push the worked time below 6h.
       let brk = pause + gaps;
       const rule = (threshold, required) => {
         if (net > threshold && brk < required) {
@@ -351,7 +351,7 @@
           net -= d; brk += d; autoAdded += d;
         }
       };
-      rule(9 * 60, 45); rule(6 * 60, 30);
+      rule(6 * 60, 30);
     }
     return { list, gross, pause, autoAdded, net, target: targetFor(date) };
   }
@@ -442,8 +442,7 @@
   function autoNote(st) {
     if (!st.autoAdded) return '';
     const m = Math.round(st.autoAdded);
-    const rule = st.net + st.autoAdded > 9 * 60 ? 'über 9 Std. → mind. 45 Min. Pause' : 'über 6 Std. → mind. 30 Min. Pause';
-    return `<p class="muted" style="margin:6px 0 0">− ${m} Min. gesetzliche Pause automatisch abgezogen (${rule}). Abschaltbar unter Einstellungen.</p>`;
+    return `<p class="muted" style="margin:6px 0 0">− ${m} Min. gesetzliche Pause automatisch abgezogen (über 6 Std. → mind. 30 Min. Pause). Abschaltbar unter Einstellungen.</p>`;
   }
   function entryRow(e) {
     const dur = Math.max(0, spanMin(e) - recordedPause(e));
