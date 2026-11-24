@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Zeitkompass</title>
+<style>
+  :root {
+    --bg: #f5f7f7; --card: #ffffff; --text: #16201f; --muted: #5f6b6a;
+    --line: #dfe5e4; --accent: #0f766e; --accent-soft: #d5efec;
+    --warn: #b45309; --warn-soft: #fdecd3; --danger: #b91c1c; --ok: #15803d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1413; --card: #162120; --text: #e6efee; --muted: #93a3a1;
+      --line: #263533; --accent: #2dd4bf; --accent-soft: #123a36;
+      --warn: #f59e0b; --warn-soft: #3a2a10; --danger: #f87171; --ok: #4ade80;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+  main { max-width: 640px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.25rem; margin: 4px 0 16px; display: flex; align-items: center; gap: 8px; }
+  h2 { font-size: 1rem; margin: 0 0 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .spread { justify-content: space-between; }
+  .grow { flex: 1; }
+  button, .btn {
+    font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--text);
+    border-radius: 10px; padding: 10px 14px; cursor: pointer; min-height: 44px;
+  }
+  button:active { transform: scale(.98); }
+  .primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { .primary { color: #04201d; } }
+  .warn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); font-weight: 600; }
+  .danger { color: var(--danger); }
+  .big { font-size: 1.1rem; padding: 16px; width: 100%; }
+  .icon { padding: 8px 10px; min-height: 40px; }
+  .clock { font-size: 3rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .02em; text-align: center; margin: 4px 0; }
+  .status { text-align: center; margin-bottom: 14px; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .85rem; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .pill.pause { background: var(--warn-soft); color: var(--warn); }
+  .pill.off { background: var(--line); color: var(--muted); }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat { background: var(--bg); border-radius: 10px; padding: 10px; text-align: center; }
+  .stat b { display: block; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: .8rem; color: var(--muted); }
+  .pos { color: var(--ok); } .neg { color: var(--danger); }
+  .entry { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .entry:first-child { border-top: 0; }
+  .entry .t { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .entry .note { color: var(--muted); font-size: .88rem; overflow-wrap: anywhere; }
+  .day { padding: 10px 0; border-top: 1px solid var(--line); }
+  .day:first-child { border-top: 0; }
+  .day-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .day-head .sum { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .bar { height: 6px; background: var(--line); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  .bar i.over { background: var(--ok); }
+  label { display: block; font-size: .88rem; color: var(--muted); margin-bottom: 4px; }
+  input, select, textarea {
+    font: inherit; width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); min-height: 44px;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field { margin-bottom: 12px; }
+  .days { display: flex; gap: 6px; flex-wrap: wrap; }
+  .days label { display: flex; align-items: center; gap: 4px; margin: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); }
+  .days input { width: auto; min-height: 0; }
+  nav.tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line);
+    display: flex; padding-bottom: env(safe-area-inset-bottom); z-index: 5;
+  }
+  nav.tabs button { flex: 1; border: 0; border-radius: 0; background: none; padding: 10px 4px; font-size: .82rem; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  nav.tabs button svg { width: 22px; height: 22px; }
+  nav.tabs button.active { color: var(--accent); font-weight: 600; }
+  .view { display: none; } .view.active { display: block; }
+  dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--text); width: min(480px, calc(100vw - 32px)); padding: 18px; }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  td, th { padding: 6px 4px; text-align: left; border-bottom: 1px solid var(--line); font-size: .92rem; }
+  th { color: var(--muted); font-weight: 500; }
+  td.r, th.r { text-align: right; }
+  .toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: .9rem; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10; }
+  .toast.show { opacity: 1; }
+  .empty { text-align: center; color: var(--muted); padding: 12px 0; }
+  @media print {
+    nav.tabs, .toast, button { display: none !important; }
+    body { padding: 0; background: #fff; color: #000; }
+    .card { border: 0; padding: 0; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent)"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    Zeitkompass
+  </h1>
+
+  <!-- HEUTE -->
+  <section class="view active" id="view-today">
+    <div class="card">
+      <div class="status" id="status"></div>
+      <div class="clock" id="clock">0:00:00</div>
+      <div class="muted" style="text-align:center;margin-bottom:16px" id="clockSub"></div>
+      <div id="actions"></div>
+    </div>
+    <div class="card">
+      <div class="stats">
+        <div class="stat"><b id="sToday">0:00</b><span>Heute</span></div>
+        <div class="stat"><b id="sWeek">0:00</b><span>Diese Woche</span></div>
+        <div class="stat"><b id="sBalance">0:00</b><span>Überstunden</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row spread" style="margin-bottom:6px">
+        <h2 style="margin:0">Einträge heute</h2>
+        <button class="icon" data-add-today>+ Eintrag</button>
+      </div>
+      <div id="todayList"></div>
+    </div>
+  </section>
+
+  <!-- WOCHE -->
+  <section class="view" id="view-week">
+    <div class="card">
+      <div class="row spread" style="margin-bottom:12px">
+        <button class="icon" id="weekPrev" aria-label="Vorherige Woche">‹</button>
+        <div style="text-align:center"><b id="weekTitle"></b><div class="muted" id="weekRange"></div></div>
+        <button class="icon" id="weekNext" aria-label="Nächste Woche">›</button>
+      </div>
+      <div class="stats" style="margin-bottom:8px">
+        <div class="stat"><b id="wWorked">0:00</b><span>Gearbeitet</span></div>
+        <div class="stat"><b id="wTarget">0:00</b><span>Soll</span></div>
+        <div class="stat"><b id="wDiff">0:00</b><span>Differenz</span></div>
+      </div>
+      <div id="weekDays"></div>
+    </div>
+  </section>
+
+  <!-- MONAT -->
+  <section class="view" id="view-month">
+    <div class="card">
+      <div class="row spread" style="margin-bottom:12px">
+        <button class="icon" id="monthPrev" aria-label="Vorheriger Monat">‹</button>
+        <b id="monthTitle"></b>
+        <button class="icon" id="monthNext" aria-label="Nächster Monat">›</button>
+      </div>
+      <div class="stats" style="margin-bottom:12px">
+        <div class="stat"><b id="mWorked">0:00</b><span>Gearbeitet</span></div>
+        <div class="stat"><b id="mTarget">0:00</b><span>Soll</span></div>
+        <div class="stat"><b id="mDiff">0:00</b><span>Differenz</span></div>
+      </div>
+      <table>
+        <thead><tr><th>Tag</th><th>Zeiten</th><th class="r">Pause</th><th class="r">Ist</th></tr></thead>
+        <tbody id="monthTable"></tbody>
+      </table>
+      <div class="row" style="margin-top:14px">
+        <button class="grow" id="monthCsv">Monat als CSV</button>
+        <button class="grow" id="monthPrint">Drucken / PDF</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- EINSTELLUNGEN -->
+  <section class="view" id="view-settings">
+    <div class="card">
+      <h2>Arbeitszeit</h2>
+      <div class="field">
+        <label for="setWeekly">Wochenstunden (Soll)</label>
+        <input id="setWeekly" type="number" min="0" max="80" step="0.25" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>Arbeitstage</label>
+        <div class="days" id="setDays"></div>
+      </div>
+      <div class="field">
+        <label for="setAutoPause">Automatische Pause (gesetzlich, ArbZG)</label>
+        <select id="setAutoPause">
+          <option value="1">Ja: mind. 30 Min. ab 6 h, 45 Min. ab 9 h</option>
+          <option value="0">Nein, nur erfasste Pausen</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="setStartBalance">Übertrag Überstunden (z. B. 5:30 oder -2:00)</label>
+        <input id="setStartBalance" type="text" placeholder="0:00">
+      </div>
+      <p class="muted" id="dailyTargetInfo"></p>
+    </div>
+    <div class="card">
+      <h2>Daten</h2>
+      <p class="muted">Alle Daten bleiben nur in diesem Browser auf diesem Gerät. Erstelle regelmäßig ein Backup.</p>
+      <div class="row" style="margin-bottom:10px">
+        <button class="grow" id="exportCsv">Alles als CSV</button>
+        <button class="grow" id="exportJson">Backup speichern</button>
+      </div>
+      <div class="row">
+        <button class="grow" id="importBtn">Backup laden</button>
+        <button class="grow danger" id="resetBtn">Alles löschen</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs">
+  <button data-tab="today" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Heute</button>
+  <button data-tab="week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Woche</button>
+  <button data-tab="month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Monat</button>
+  <button data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Einstellungen</button>
+</nav>
+
+<dialog id="editDlg">
+  <form method="dialog" id="editForm">
+    <h2 id="editTitle">Eintrag</h2>
+    <div class="field"><label for="fDate">Datum</label><input id="fDate" type="date" required></div>
+    <div class="grid2">
+      <div class="field"><label for="fStart">Beginn</label><input id="fStart" type="time" required></div>
+      <div class="field"><label for="fEnd">Ende</label><input id="fEnd" type="time"></div>
+    </div>
+    <div class="field"><label for="fPause">Pause (Minuten)</label><input id="fPause" type="number" min="0" step="1" inputmode="numeric"></div>
+    <div class="field"><label for="fNote">Notiz / Projekt</label><input id="fNote" type="text" maxlength="200" placeholder="optional"></div>
+    <p class="muted" id="fHint"></p>
+    <div class="row spread">
+      <button type="button" class="danger" id="fDelete">Löschen</button>
+      <div class="row">
+        <button type="button" id="fCancel">Abbrechen</button>
+        <button type="submit" class="primary" value="save">Speichern</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+  const KEY = 'zeitkompass.v1';
+  const DAY_NAMES = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+  const DAY_LONG = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+  const MONTHS = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+  // ---------- state ----------
+  const defaults = () => ({
+    entries: [],           // {id, date:'YYYY-MM-DD', start:'HH:MM', end:'HH:MM'|null, pause:min, note}
+    running: null,         // {id, pauseStart: ms|null}
+    settings: { weekly: 40, workdays: [1,2,3,4,5], autoPause: true, startBalance: 0 }
+  });
+  let state = load();
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (!raw) return defaults();
+      const d = JSON.parse(raw);
+      const base = defaults();
+      return { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) } };
+    } catch (e) { return defaults(); }
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch (e) { toast('Speichern fehlgeschlagen – Speicher blockiert?'); }
+  }
+
+  // ---------- helpers ----------
+  const $ = (s) => document.querySelector(s);
+  const pad = (n) => String(n).padStart(2, '0');
+  const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parseYmd = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const hm = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmtDate = (s) => { const d = parseYmd(s); return `${DAY_NAMES[d.getDay()]}, ${pad(d.getDate())}.${pad(d.getMonth() + 1)}.`; };
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const mondayOf = (d) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const wd = (x.getDay() + 6) % 7; return addDays(x, -wd); };
+
+  function fmtDur(min, signed = false) {
+    const neg = min < 0; const a = Math.round(Math.abs(min));
+    const s = `${Math.floor(a / 60)}:${pad(a % 60)}`;
+    return neg ? `−${s}` : (signed && a > 0 ? `+${s}` : s);
+  }
+  function parseDur(s) {
+    s = String(s || '').trim().replace('−', '-').replace(',', '.');
+    if (!s) return 0;
+    const neg = s.startsWith('-'); if (neg || s.startsWith('+')) s = s.slice(1);
+    let m;
+    if (s.includes(':')) { const [h, mm] = s.split(':'); m = (Number(h) || 0) * 60 + (Number(mm) || 0); }
+    else m = Math.round((Number(s) || 0) * 60);
+    return neg ? -m : m;
+  }
+  function isoWeek(d) {
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day);
+    const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+    return Math.ceil(((t - y0) / 86400000 + 1) / 7);
+  }
+
+  // ---------- calculations ----------
+  function now() { return new Date(); }
+  function liveExtraPause(e) {
+    const r = state.running;
+    if (r && r.id === e.id && r.pauseStart) return Math.max(0, (Date.now() - r.pauseStart) / 60000);
+    return 0;
+  }
+  // gross span in minutes; running entries count until now
+  function spanMin(e) {
+    let endMin;
+    if (e.end) endMin = toMin(e.end);
+    else {
+      const n = now(); const startDate = parseYmd(e.date);
+      const daysDiff = Math.round((new Date(n.getFullYear(), n.getMonth(), n.getDate()) - startDate) / 86400000);
+      endMin = n.getHours() * 60 + n.getMinutes() + n.getSeconds() / 60 + daysDiff * 1440;
+      return Math.max(0, endMin - toMin(e.start));
+    }
+    let d = endMin - toMin(e.start);
+    if (d < 0) d += 1440; // over midnight
+    return d;
+  }
+  function recordedPause(e) { return (Number(e.pause) || 0) + liveExtraPause(e); }
+  function entriesOn(date) { return state.entries.filter((e) => e.date === date).sort((a, b) => a.start.localeCompare(b.start)); }
+
+  // day result: worked minutes after (optional) statutory break
+  function dayStats(date) {
+    const list = entriesOn(date);
+    let gross = 0, pause = 0;
+    list.forEach((e) => { gross += spanMin(e); pause += recordedPause(e); });
+    // gaps between entries count as break too (for legal minimum)
+    let gaps = 0;
+    for (let i = 1; i < list.length; i++) {
+      if (list[i - 1].end) gaps += Math.max(0, toMin(list[i].start) - toMin(list[i - 1].end));
+    }
+    let net = Math.max(0, gross - pause);
+    let autoAdded = 0;
+    if (state.settings.autoPause) {
+      // ArbZG §4: >6h → 30 min, >9h → 45 min total break. Deduct only the shortfall,
+      // and never push the worked time below the respective threshold.
+      let brk = pause + gaps;
+      const rule = (threshold, required) => {
+        if (net > threshold && brk < required) {
+          const d = Math.min(required - brk, net - threshold);
+          net -= d; brk += d; autoAdded += d;
+        }
+      };
+      rule(9 * 60, 45); rule(6 * 60, 30);
+    }
+    return { list, gross, pause, autoAdded, net, target: targetFor(date) };
+  }
+  function targetFor(date) {
+    const s = state.settings; const wd = parseYmd(date).getDay();
+    if (!s.workdays.includes(wd) || !s.workdays.length) return 0;
+    return (Number(s.weekly) || 0) * 60 / s.workdays.length;
+  }
+  function rangeStats(from, toIncl) {
+    let worked = 0, target = 0; const days = [];
+    for (let d = new Date(from); d <= toIncl; d = addDays(d, 1)) {
+      const st = dayStats(ymd(d)); worked += st.net; target += st.target; days.push(st);
+    }
+    return { worked, target, diff: worked - target, days };
+  }
+  function balance() {
+    if (!state.entries.length) return state.settings.startBalance || 0;
+    const first = state.entries.map((e) => e.date).sort()[0];
+    const today = new Date(); const todayStr = ymd(today);
+    let sum = state.settings.startBalance || 0;
+    for (let d = parseYmd(first); ymd(d) <= todayStr; d = addDays(d, 1)) {
+      const k = ymd(d); const st = dayStats(k);
+      // today is still in progress: count overtime already earned, but no deficit yet
+      if (k === todayStr) { sum += Math.max(0, st.net - st.target); continue; }
+      sum += st.net - st.target;
+    }
+    return sum;
+  }
+
+  // ---------- actions ----------
+  function runningEntry() { return state.running ? state.entries.find((e) => e.id === state.running.id) : null; }
+  function clockIn() {
+    const n = now();
+    const e = { id: uid(), date: ymd(n), start: hm(n), end: null, pause: 0, note: '' };
+    state.entries.push(e); state.running = { id: e.id, pauseStart: null };
+    save(); render(); toast(`Eingestempelt um ${e.start}`);
+  }
+  function clockOut() {
+    const e = runningEntry(); if (!e) return;
+    if (state.running.pauseStart) endPause(true);
+    const n = now(); e.end = hm(n);
+    // ran past midnight on a later day: cap at 23:59 of start day is wrong; keep end, spanMin handles one wrap
+    state.running = null; save(); render();
+    toast(`Ausgestempelt um ${e.end} · ${fmtDur(Math.max(0, spanMin(e) - e.pause))}`);
+  }
+  function startPause() {
+    if (!state.running) return; state.running.pauseStart = Date.now(); save(); render(); toast('Pause gestartet');
+  }
+  function endPause(silent) {
+    const r = state.running; const e = runningEntry(); if (!r || !e || !r.pauseStart) return;
+    e.pause = Math.round((Number(e.pause) || 0) + (Date.now() - r.pauseStart) / 60000);
+    r.pauseStart = null; save();
+    if (!silent) { render(); toast('Pause beendet'); }
+  }
+
+  // ---------- rendering ----------
+  function renderToday() {
+    const e = runningEntry(); const r = state.running; const todayStr = ymd(now());
+    const st = dayStats(todayStr);
+    let statusHtml, sub = '', actions = '';
+    if (!e) {
+      statusHtml = '<span class="pill off">Nicht eingestempelt</span>';
+      sub = st.list.length ? `Heute bisher ${fmtDur(st.net)} gearbeitet` : 'Noch keine Zeit heute';
+      actions = '<button class="primary big" id="btnIn">Kommen</button>';
+    } else if (r.pauseStart) {
+      statusHtml = '<span class="pill pause">In Pause</span>';
+      sub = `Pause seit ${hm(new Date(r.pauseStart))} · ${fmtDur(liveExtraPause(e))}`;
+      actions = '<div class="row"><button class="primary big grow" id="btnPauseEnd" style="width:auto">Pause beenden</button><button class="big grow" id="btnOut" style="width:auto">Gehen</button></div>';
+    } else {
+      statusHtml = '<span class="pill">Bei der Arbeit</span>';
+      sub = `Seit ${e.start} Uhr${e.date !== todayStr ? ' (' + fmtDate(e.date) + ')' : ''}`;
+      actions = '<div class="row"><button class="warn big grow" id="btnPause" style="width:auto">Pause</button><button class="primary big grow" id="btnOut" style="width:auto">Gehen</button></div>';
+    }
+    $('#status').innerHTML = statusHtml; $('#clockSub').textContent = sub; $('#actions').innerHTML = actions;
+    renderClock();
+
+    const mon = mondayOf(now());
+    const wk = rangeStats(mon, addDays(mon, 6));
+    $('#sToday').textContent = fmtDur(st.net);
+    $('#sWeek').textContent = fmtDur(wk.worked);
+    const bal = balance(); const b = $('#sBalance');
+    b.textContent = fmtDur(bal, true); b.className = bal > 0 ? 'pos' : bal < 0 ? 'neg' : '';
+
+    $('#todayList').innerHTML = st.list.length
+      ? st.list.map(entryRow).join('') + (st.autoAdded ? `<p class="muted">+ ${fmtDur(st.autoAdded)} gesetzliche Pause automatisch abgezogen</p>` : '')
+      : '<div class="empty">Noch keine Einträge</div>';
+  }
+  function entryRow(e) {
+    const dur = Math.max(0, spanMin(e) - recordedPause(e));
+    return `<div class="entry">
+      <div class="grow">
+        <div class="t">${e.start} – ${e.end || '<span class="pill" style="font-size:.75rem">läuft</span>'}</div>
+        <div class="note">${e.pause || liveExtraPause(e) ? `Pause ${Math.round(recordedPause(e))} Min.` : ''}${e.note ? (e.pause ? ' · ' : '') + esc(e.note) : ''}</div>
+      </div>
+      <b style="font-variant-numeric:tabular-nums">${fmtDur(dur)}</b>
+      <button class="icon" data-edit="${e.id}" aria-label="Bearbeiten">✎</button>
+    </div>`;
+  }
+  function renderClock() {
+    const st = dayStats(ymd(now()));
+    const e = runningEntry();
+    let secs = Math.round(st.net * 60);
+    if (e && e.date !== ymd(now())) { // shift started yesterday
+      secs = Math.round(Math.max(0, spanMin(e) - recordedPause(e)) * 60);
+    }
+    $('#clock').textContent = `${Math.floor(secs / 3600)}:${pad(Math.floor(secs / 60) % 60)}:${pad(secs % 60)}`;
+  }
+
+  let weekOffset = 0, monthOffset = 0;
+  function renderWeek() {
+    const mon = addDays(mondayOf(now()), weekOffset * 7); const sun = addDays(mon, 6);
+    const r = rangeStats(mon, sun);
+    $('#weekTitle').textContent = `KW ${isoWeek(mon)}${weekOffset === 0 ? ' (aktuell)' : ''}`;
+    $('#weekRange').textContent = `${pad(mon.getDate())}.${pad(mon.getMonth() + 1)}. – ${pad(sun.getDate())}.${pad(sun.getMonth() + 1)}.${sun.getFullYear()}`;
+    $('#wWorked').textContent = fmtDur(r.worked); $('#wTarget').textContent = fmtDur(r.target);
+    const d = $('#wDiff'); d.textContent = fmtDur(r.diff, true); d.className = r.diff > 0 ? 'pos' : r.diff < 0 ? 'neg' : '';
+    $('#weekDays').innerHTML = r.days.map((st, i) => {
+      const date = ymd(addDays(mon, i));
+      const pct = st.target ? Math.min(100, st.net / st.target * 100) : (st.net ? 100 : 0);
+      const isToday = date === ymd(now());
+      return `<div class="day">
+        <div class="day-head">
+          <div><b>${DAY_LONG[parseYmd(date).getDay()]}</b> <span class="muted">${pad(parseYmd(date).getDate())}.${pad(parseYmd(date).getMonth() + 1)}.${isToday ? ' · heute' : ''}</span></div>
+          <div class="row" style="gap:6px"><span class="sum">${fmtDur(st.net)}</span><span class="muted">/ ${fmtDur(st.target)}</span>
+          <button class="icon" data-add="${date}" aria-label="Eintrag hinzufügen">+</button></div>
+        </div>
+        ${st.target || st.net ? `<div class="bar"><i class="${st.net >= st.target && st.target ? 'over' : ''}" style="width:${pct}%"></i></div>` : ''}
+        ${st.list.map(entryRow).join('')}
+      </div>`;
+    }).join('');
+  }
+  function monthBounds() {
+    const n = now(); const first = new Date(n.getFullYear(), n.getMonth() + monthOffset, 1);
+    const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
+    return { first, last };
+  }
+  function renderMonth() {
+    const { first, last } = monthBounds(); const r = rangeStats(first, last);
+    $('#monthTitle').textContent = `${MONTHS[first.getMonth()]} ${first.getFullYear()}`;
+    $('#mWorked').textContent = fmtDur(r.worked); $('#mTarget').textContent = fmtDur(r.target);
+    const d = $('#mDiff'); d.textContent = fmtDur(r.diff, true); d.className = r.diff > 0 ? 'pos' : r.diff < 0 ? 'neg' : '';
+    const rows = r.days.filter((st) => st.list.length).map((st) => {
+      const date = st.list[0].date;
+      const times = st.list.map((e) => `${e.start}–${e.end || '…'}`).join(', ');
+      return `<tr><td>${fmtDate(date)}</td><td>${times}</td><td class="r">${Math.round(st.pause + st.autoAdded)}′</td><td class="r"><b>${fmtDur(st.net)}</b></td></tr>`;
+    });
+    $('#monthTable').innerHTML = rows.join('') || '<tr><td colspan="4" class="empty">Keine Einträge in diesem Monat</td></tr>';
+  }
+  function renderSettings() {
+    const s = state.settings;
+    $('#setWeekly').value = s.weekly;
+    $('#setAutoPause').value = s.autoPause ? '1' : '0';
+    $('#setStartBalance').value = s.startBalance ? fmtDur(s.startBalance, true).replace('−', '-') : '';
+    $('#setDays').innerHTML = [1, 2, 3, 4, 5, 6, 0].map((d) =>
+      `<label><input type="checkbox" value="${d}" ${s.workdays.includes(d) ? 'checked' : ''}> ${DAY_NAMES[d]}</label>`).join('');
+    const per = s.workdays.length ? s.weekly * 60 / s.workdays.length : 0;
+    $('#dailyTargetInfo').textContent = `Soll pro Arbeitstag: ${fmtDur(per)} Std.`;
+  }
+
+  let currentTab = 'today';
+  function render() {
+    if (currentTab === 'today') renderToday();
+    if (currentTab === 'week') renderWeek();
+    if (currentTab === 'month') renderMonth();
+    if (currentTab === 'settings') renderSettings();
+  }
+
+  // ---------- edit dialog ----------
+  const dlg = $('#editDlg'); let editingId = null;
+  function openEdit(id, presetDate) {
+    editingId = id;
+    const e = id ? state.entries.find((x) => x.id === id) : null;
+    const isRunning = e && state.running && state.running.id === e.id;
+    $('#editTitle').textContent = e ? 'Eintrag bearbeiten' : 'Eintrag hinzufügen';
+    $('#fDate').value = e ? e.date : (presetDate || ymd(now()));
+    $('#fStart').value = e ? e.start : '08:00';
+    $('#fEnd').value = e ? (e.end || '') : '16:30';
+    $('#fEnd').required = !isRunning;
+    $('#fPause').value = e ? (e.pause || 0) : 30;
+    $('#fNote').value = e ? e.note || '' : '';
+    $('#fDelete').style.visibility = e ? 'visible' : 'hidden';
+    $('#fHint').textContent = isRunning ? 'Dieser Eintrag läuft noch – Ende leer lassen, um weiterzuarbeiten.' : 'Endet die Schicht nach Mitternacht, einfach die Endzeit am Folgetag eintragen.';
+    dlg.showModal();
+  }
+  $('#editForm').addEventListener('submit', (ev) => {
+    const date = $('#fDate').value, start = $('#fStart').value, end = $('#fEnd').value || null;
+    const pause = Math.max(0, parseInt($('#fPause').value, 10) || 0), note = $('#fNote').value.trim();
+    if (!date || !start) { ev.preventDefault(); return; }
+    let e = editingId ? state.entries.find((x) => x.id === editingId) : null;
+    const isRunning = e && state.running && state.running.id === e.id;
+    if (!end && !isRunning) { ev.preventDefault(); toast('Bitte Endzeit eintragen'); return; }
+    if (end) {
+      let span = toMin(end) - toMin(start); if (span < 0) span += 1440;
+      if (pause >= span) { ev.preventDefault(); toast('Pause ist länger als die Arbeitszeit'); return; }
+    }
+    if (!e) { e = { id: uid() }; state.entries.push(e); }
+    Object.assign(e, { date, start, end, pause, note });
+    if (isRunning && end) state.running = null;
+    save(); render(); toast('Gespeichert');
+  });
+  $('#fCancel').addEventListener('click', () => dlg.close());
+  $('#fDelete').addEventListener('click', () => {
+    if (!editingId || !confirm('Diesen Eintrag löschen?')) return;
+    state.entries = state.entries.filter((e) => e.id !== editingId);
+    if (state.running && state.running.id === editingId) state.running = null;
+    save(); dlg.close(); render(); toast('Gelöscht');
+  });
+
+  // ---------- export / import ----------
+  function download(name, content, type) {
+    const blob = new Blob([content], { type });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  function csv(entries) {
+    const head = ['Datum', 'Wochentag', 'Beginn', 'Ende', 'Pause (Min)', 'Arbeitszeit (h:mm)', 'Arbeitszeit (Dezimal)', 'Notiz'];
+    const q = (v) => `"${String(v).replace(/"/g, '""')}"`;
+    const lines = entries.slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).map((e) => {
+      const net = Math.max(0, spanMin(e) - recordedPause(e));
+      const d = parseYmd(e.date);
+      return [`${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`, DAY_LONG[d.getDay()], e.start, e.end || '', Math.round(recordedPause(e)),
+        fmtDur(net), (net / 60).toFixed(2).replace('.', ','), e.note || ''].map(q).join(';');
+    });
+    return '﻿' + [head.map(q).join(';'), ...lines].join('\r\n');
+  }
+  $('#exportCsv').addEventListener('click', () => download(`zeitkompass-${ymd(now())}.csv`, csv(state.entries), 'text/csv;charset=utf-8'));
+  $('#monthCsv').addEventListener('click', () => {
+    const { first } = monthBounds(); const prefix = `${first.getFullYear()}-${pad(first.getMonth() + 1)}`;
+    download(`zeitkompass-${prefix}.csv`, csv(state.entries.filter((e) => e.date.startsWith(prefix))), 'text/csv;charset=utf-8');
+  });
+  $('#monthPrint').addEventListener('click', () => window.print());
+  $('#exportJson').addEventListener('click', () => download(`zeitkompass-backup-${ymd(now())}.json`, JSON.stringify(state, null, 2), 'application/json'));
+  $('#importBtn').addEventListener('click', () => $('#importFile').click());
+  $('#importFile').addEventListener('change', async (ev) => {
+    const f = ev.target.files[0]; if (!f) return;
+    try {
+      const d = JSON.parse(await f.text());
+      if (!Array.isArray(d.entries)) throw new Error('format');
+      if (!confirm(`Backup mit ${d.entries.length} Einträgen laden? Aktuelle Daten werden ersetzt.`)) return;
+      const base = defaults();
+      state = { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) } };
+      save(); render(); toast('Backup geladen');
+    } catch (e) { toast('Datei ist kein gültiges Backup'); }
+    ev.target.value = '';
+  });
+  $('#resetBtn').addEventListener('click', () => {
+    if (!confirm('Wirklich ALLE Einträge und Einstellungen löschen?')) return;
+    state = defaults(); save(); render(); toast('Alle Daten gelöscht');
+  });
+
+  // ---------- settings ----------
+  $('#setWeekly').addEventListener('change', (e) => { state.settings.weekly = Math.max(0, Number(e.target.value) || 0); save(); renderSettings(); });
+  $('#setAutoPause').addEventListener('change', (e) => { state.settings.autoPause = e.target.value === '1'; save(); });
+  $('#setStartBalance').addEventListener('change', (e) => { state.settings.startBalance = parseDur(e.target.value); save(); renderSettings(); });
+  $('#setDays').addEventListener('change', () => {
+    state.settings.workdays = [...document.querySelectorAll('#setDays input:checked')].map((i) => Number(i.value));
+    save(); renderSettings();
+  });
+
+  // ---------- global events ----------
+  document.addEventListener('click', (ev) => {
+    const t = ev.target.closest('button'); if (!t) return;
+    if (t.id === 'btnIn') clockIn();
+    else if (t.id === 'btnOut') clockOut();
+    else if (t.id === 'btnPause') startPause();
+    else if (t.id === 'btnPauseEnd') endPause();
+    else if (t.dataset.edit) openEdit(t.dataset.edit);
+    else if (t.dataset.add) openEdit(null, t.dataset.add);
+    else if (t.hasAttribute('data-add-today')) openEdit(null, ymd(now()));
+    else if (t.dataset.tab) {
+      currentTab = t.dataset.tab;
+      document.querySelectorAll('nav.tabs button').forEach((b) => b.classList.toggle('active', b === t));
+      document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === 'view-' + currentTab));
+      render(); window.scrollTo(0, 0);
+    }
+  });
+  $('#weekPrev').addEventListener('click', () => { weekOffset--; renderWeek(); });
+  $('#weekNext').addEventListener('click', () => { weekOffset++; renderWeek(); });
+  $('#monthPrev').addEventListener('click', () => { monthOffset--; renderMonth(); });
+  $('#monthNext').addEventListener('click', () => { monthOffset++; renderMonth(); });
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // live updates
+  setInterval(() => { if (currentTab === 'today') { if (state.running) renderToday(); } }, 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { state = load(); render(); } });
+  window.addEventListener('storage', (e) => { if (e.key === KEY) { state = load(); render(); } });
+
+  render();
+})();
+</script>
+</body>
+</html>
