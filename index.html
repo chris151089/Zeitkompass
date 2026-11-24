@@ -436,8 +436,14 @@
     b.textContent = fmtDur(bal, true); b.className = bal > 0 ? 'pos' : bal < 0 ? 'neg' : '';
 
     $('#todayList').innerHTML = st.list.length
-      ? st.list.map(entryRow).join('') + (st.autoAdded ? `<p class="muted">+ ${fmtDur(st.autoAdded)} gesetzliche Pause automatisch abgezogen</p>` : '')
+      ? st.list.map(entryRow).join('') + autoNote(st)
       : '<div class="empty">Noch keine Einträge</div>';
+  }
+  function autoNote(st) {
+    if (!st.autoAdded) return '';
+    const m = Math.round(st.autoAdded);
+    const rule = st.net + st.autoAdded > 9 * 60 ? 'über 9 Std. → mind. 45 Min. Pause' : 'über 6 Std. → mind. 30 Min. Pause';
+    return `<p class="muted" style="margin:6px 0 0">− ${m} Min. gesetzliche Pause automatisch abgezogen (${rule}). Abschaltbar unter Einstellungen.</p>`;
   }
   function entryRow(e) {
     const dur = Math.max(0, spanMin(e) - recordedPause(e));
@@ -480,6 +486,7 @@
         </div>
         ${st.target || st.net ? `<div class="bar"><i class="${st.net >= st.target && st.target ? 'over' : ''}" style="width:${pct}%"></i></div>` : ''}
         ${st.list.map(entryRow).join('')}
+        ${autoNote(st)}
       </div>`;
     }).join('');
   }
