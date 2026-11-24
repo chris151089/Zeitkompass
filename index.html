@@ -114,9 +114,9 @@
     </div>
     <div class="card">
       <div class="stats">
-        <div class="stat"><b id="sToday">0:00</b><span>Heute</span></div>
-        <div class="stat"><b id="sWeek">0:00</b><span>Diese Woche</span></div>
-        <div class="stat"><b id="sBalance">0:00</b><span>Überstunden</span></div>
+        <div class="stat"><b id="sToday">0,00</b><span>Heute</span></div>
+        <div class="stat"><b id="sWeek">0,00</b><span>Diese Woche</span></div>
+        <div class="stat"><b id="sBalance">0,00</b><span>Überstunden</span></div>
       </div>
     </div>
     <div class="card">
@@ -137,9 +137,9 @@
         <button class="icon" id="weekNext" aria-label="Nächste Woche">›</button>
       </div>
       <div class="stats" style="margin-bottom:8px">
-        <div class="stat"><b id="wWorked">0:00</b><span>Gearbeitet</span></div>
-        <div class="stat"><b id="wTarget">0:00</b><span>Soll</span></div>
-        <div class="stat"><b id="wDiff">0:00</b><span>Differenz</span></div>
+        <div class="stat"><b id="wWorked">0,00</b><span>Gearbeitet</span></div>
+        <div class="stat"><b id="wTarget">0,00</b><span>Soll</span></div>
+        <div class="stat"><b id="wDiff">0,00</b><span>Differenz</span></div>
       </div>
       <div id="weekDays"></div>
     </div>
@@ -154,9 +154,9 @@
         <button class="icon" id="monthNext" aria-label="Nächster Monat">›</button>
       </div>
       <div class="stats" style="margin-bottom:12px">
-        <div class="stat"><b id="mWorked">0:00</b><span>Gearbeitet</span></div>
-        <div class="stat"><b id="mTarget">0:00</b><span>Soll</span></div>
-        <div class="stat"><b id="mDiff">0:00</b><span>Differenz</span></div>
+        <div class="stat"><b id="mWorked">0,00</b><span>Gearbeitet</span></div>
+        <div class="stat"><b id="mTarget">0,00</b><span>Soll</span></div>
+        <div class="stat"><b id="mDiff">0,00</b><span>Differenz</span></div>
       </div>
       <table>
         <thead><tr><th>Tag</th><th>Zeiten</th><th class="r">Pause</th><th class="r">Ist</th></tr></thead>
@@ -189,8 +189,8 @@
         </select>
       </div>
       <div class="field">
-        <label for="setStartBalance">Übertrag Überstunden (z. B. 5:30 oder -2:00)</label>
-        <input id="setStartBalance" type="text" placeholder="0:00">
+        <label for="setStartBalance">Übertrag Überstunden in Stunden (z. B. 5,5 oder -2)</label>
+        <input id="setStartBalance" type="text" inputmode="decimal" placeholder="0,00">
       </div>
       <p class="muted" id="dailyTargetInfo"></p>
     </div>
@@ -284,8 +284,9 @@
   const mondayOf = (d) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const wd = (x.getDay() + 6) % 7; return addDays(x, -wd); };
 
   function fmtDur(min, signed = false) {
+    // decimal hours with comma, e.g. 105 min → "1,75"
     const neg = min < 0; const a = Math.round(Math.abs(min));
-    const s = `${Math.floor(a / 60)}:${pad(a % 60)}`;
+    const s = (a / 60).toFixed(2).replace('.', ',');
     return neg ? `−${s}` : (signed && a > 0 ? `+${s}` : s);
   }
   function parseDur(s) {
@@ -566,13 +567,13 @@
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
   function csv(entries) {
-    const head = ['Datum', 'Wochentag', 'Beginn', 'Ende', 'Pause (Min)', 'Arbeitszeit (h:mm)', 'Arbeitszeit (Dezimal)', 'Notiz'];
+    const head = ['Datum', 'Wochentag', 'Beginn', 'Ende', 'Pause (Min)', 'Arbeitszeit (Std.)', 'Notiz'];
     const q = (v) => `"${String(v).replace(/"/g, '""')}"`;
     const lines = entries.slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).map((e) => {
       const net = Math.max(0, spanMin(e) - recordedPause(e));
       const d = parseYmd(e.date);
       return [`${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`, DAY_LONG[d.getDay()], e.start, e.end || '', Math.round(recordedPause(e)),
-        fmtDur(net), (net / 60).toFixed(2).replace('.', ','), e.note || ''].map(q).join(';');
+        fmtDur(net), e.note || ''].map(q).join(';');
     });
     return '﻿' + [head.map(q).join(';'), ...lines].join('\r\n');
   }

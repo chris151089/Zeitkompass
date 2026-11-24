@@ -8,6 +8,7 @@ Einfache Zeiterfassung für die Arbeit – eine einzige HTML-Datei, läuft im Br
 - Einträge **nachtragen, bearbeiten, löschen** (auch Schichten über Mitternacht)
 - **Wochenansicht** (KW) mit Soll/Ist pro Tag
 - **Monatsübersicht** mit CSV-Export und Druck/PDF
+- Alle Stunden im **Dezimalformat** (z. B. 1 Std. 45 Min. = 1,75)
 - **Überstundenkonto** inkl. Übertrag aus der Vergangenheit
 - Einstellbare Wochenstunden und Arbeitstage
 - Optional **gesetzliche Mindestpause** (ArbZG: 30 Min. ab 6 h, 45 Min. ab 9 h) wird automatisch abgezogen, wenn zu wenig Pause erfasst wurde
