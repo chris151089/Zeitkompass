@@ -378,6 +378,7 @@
   // Turn such blocks into a break (von–bis) of the surrounding work entry instead of counting them as work.
   function foldPauseEntries(st) {
     const m = (t) => { const [h, mi] = String(t).split(':').map(Number); return h * 60 + mi; };
+    relabelPayouts(st);
     const pauses = st.entries.filter((e) => /^PAUSE$/i.test(e.note || '') && e.end);
     if (!pauses.length) return st;
     pauses.forEach((p) => {
@@ -391,6 +392,10 @@
       }
     });
     st.entries = st.entries.filter((e) => !pauses.includes(e));
+    return st;
+  }
+  function relabelPayouts(st) {
+    (st.adjustments || []).forEach((a) => { if (a.note === 'Pauschalabzug (PZE)') a.note = 'Auszahlung (PZE)'; });
     return st;
   }
   function load() {
@@ -1113,7 +1118,7 @@
         // summary columns are per period (month); a file can hold several months
         const per = (out.periods = out.periods || {})[date.slice(0, 7)] = { last: date, vorsaldo: num(d[`VorsaldoOhneAuszahlung_${zi}`]), endsaldo: num(d.EndSumme || d[`SummeNettoLfdMonat_${zi}`]),
           // bookings on the account that belong to no single day
-          bookings: [['UmbuchungLfdMonat', 'Umbuchung'], ['PauschalAbzugLfdMonat', 'Pauschalabzug'], ['AuszahlungStunden', 'Auszahlung'], ['ZAAbzugLfdMonat', 'ZA-Abzug'], ['ZuschlagLfdMonat', 'Zuschlag']]
+          bookings: [['UmbuchungLfdMonat', 'Umbuchung'], ['PauschalAbzugLfdMonat', 'Auszahlung / Pauschalabzug'], ['AuszahlungStunden', 'Auszahlung'], ['ZAAbzugLfdMonat', 'ZA-Abzug'], ['ZuschlagLfdMonat', 'Zuschlag']]
             .map(([col, label]) => ({ label, h: num(d[`${col}_${zi}`]) })).filter((b) => b.h) };
         if (out.vorsaldo === undefined) out.vorsaldo = per.vorsaldo;
       }
@@ -1145,7 +1150,7 @@
       state.adjustments = (state.adjustments || []).filter((a) => !String(a.id).startsWith(`pze-${k}-`));
       (per.bookings || []).forEach((b) => {
         const sign = b.label === 'Auszahlung' && b.h > 0 ? -1 : 1;           // paid-out hours leave the account
-        state.adjustments.push({ id: `pze-${k}-${b.label}`, date: per.last, min: Math.round(sign * b.h * 60), note: `${b.label} (PZE)` }); adj++;
+        state.adjustments.push({ id: `pze-${k}-${b.label}`, date: per.last, min: Math.round(sign * b.h * 60), note: `${b.label === 'Auszahlung / Pauschalabzug' ? 'Auszahlung' : b.label} (PZE)` }); adj++;
       });
     });
     return { work, abs, adj };
