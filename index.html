@@ -72,7 +72,8 @@
     font: inherit; width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--line);
     background: var(--bg); color: var(--text); min-height: 44px;
   }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px; }
+  input[type=date], input[type=time] { min-width: 0; max-width: 100%; -webkit-appearance: none; appearance: none; }
   .field { margin-bottom: 12px; }
   .days { display: flex; gap: 6px; flex-wrap: wrap; }
   .days label { display: flex; align-items: center; gap: 4px; margin: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); }
@@ -93,6 +94,9 @@
   td.r, th.r { text-align: right; }
   .toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: .9rem; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10; }
   .toast.show { opacity: 1; }
+  .absence { display:flex; align-items:center; gap:10px; padding:8px 10px; margin-top:8px; border-radius:10px; background: var(--accent-soft); }
+  .absence.holiday { background: var(--warn-soft); }
+  .absence .grow { font-weight:600; }
   .empty { text-align: center; color: var(--muted); padding: 12px 0; }
   @media print {
     nav.tabs, .toast, button { display: none !important; }
@@ -126,7 +130,7 @@
     <div class="card">
       <div class="row spread" style="margin-bottom:6px">
         <h2 style="margin:0">Einträge heute</h2>
-        <button class="icon" data-add-today>+ Eintrag</button>
+        <div class="row" style="gap:6px"><button class="icon" data-absence-new>Abwesend</button><button class="icon" data-add-today>+ Eintrag</button></div>
       </div>
       <div id="todayList"></div>
     </div>
@@ -186,6 +190,14 @@
         <div class="days" id="setDays"></div>
       </div>
       <div class="field">
+        <label for="setState">Bundesland (für gesetzliche Feiertage)</label>
+        <select id="setState"></select>
+      </div>
+      <div class="field">
+        <label for="setVacation">Urlaubstage pro Jahr</label>
+        <input id="setVacation" type="number" min="0" max="60" step="0.5" inputmode="decimal">
+      </div>
+      <div class="field">
         <label for="setAutoPause">Automatische Pause (gesetzlich, ArbZG)</label>
         <select id="setAutoPause">
           <option value="1">Ja: mind. 30 Min. ab 6 Std.</option>
@@ -197,6 +209,11 @@
         <input id="setStartBalance" type="text" inputmode="decimal" placeholder="0,00">
       </div>
       <p class="muted" id="dailyTargetInfo"></p>
+    </div>
+    <div class="card">
+      <h2>Urlaub &amp; Feiertage</h2>
+      <div id="vacationInfo"></div>
+      <div id="holidayList" style="margin-top:12px"></div>
     </div>
     <div class="card">
       <h2>Daten</h2>
@@ -224,12 +241,27 @@
 <dialog id="editDlg">
   <form method="dialog" id="editForm">
     <h2 id="editTitle">Eintrag</h2>
-    <div class="field"><label for="fDate">Datum</label><input id="fDate" type="date" required></div>
+    <div class="field" id="typeField"><label for="fType">Art</label>
+      <select id="fType">
+        <option value="work">Arbeitszeit</option>
+        <option value="urlaub">Urlaub</option>
+        <option value="urlaub_halb">Urlaub (halber Tag)</option>
+        <option value="krank">Krank</option>
+        <option value="feiertag">Feiertag / frei (Betrieb)</option>
+        <option value="gleittag">Überstundenabbau (Gleittag)</option>
+      </select>
+    </div>
+    <div class="grid2">
+      <div class="field"><label for="fDate" id="fDateLabel">Datum</label><input id="fDate" type="date" required></div>
+      <div class="field" id="dateToField"><label for="fDateTo">bis (optional)</label><input id="fDateTo" type="date"></div>
+    </div>
+    <div id="workFields">
     <div class="grid2">
       <div class="field"><label for="fStart">Beginn</label><input id="fStart" type="time" required></div>
       <div class="field"><label for="fEnd">Ende</label><input id="fEnd" type="time"></div>
     </div>
     <div class="field"><label for="fPause">Pause (Minuten)</label><input id="fPause" type="number" min="0" step="1" inputmode="numeric"></div>
+    </div>
     <div class="field"><label for="fNote">Notiz / Projekt</label><input id="fNote" type="text" maxlength="200" placeholder="optional"></div>
     <p class="muted" id="fHint"></p>
     <div class="row spread">
@@ -256,8 +288,19 @@
   const defaults = () => ({
     entries: [],           // {id, date:'YYYY-MM-DD', start:'HH:MM', end:'HH:MM'|null, pause:min, note}
     running: null,         // {id, pauseStart: ms|null}
-    settings: { weekly: 40, workdays: [1,2,3,4,5], autoPause: true, startBalance: 0 }
+    absences: {},          // {'YYYY-MM-DD': {type, note}}
+    settings: { weekly: 40, workdays: [1,2,3,4,5], autoPause: true, startBalance: 0, state: '', vacationDays: 30 }
   });
+  const ABS = {
+    urlaub:      { label: 'Urlaub', factor: 0, days: 1 },
+    urlaub_halb: { label: 'Urlaub (halber Tag)', factor: 0.5, days: 0.5 },
+    krank:       { label: 'Krank', factor: 0, days: 0 },
+    feiertag:    { label: 'Feiertag / frei', factor: 0, days: 0 },
+    gleittag:    { label: 'Überstundenabbau', factor: 1, days: 0 },
+  };
+  const STATES = { '': 'Keins (nur bundesweite Feiertage)', BW: 'Baden-Württemberg', BY: 'Bayern', BE: 'Berlin', BB: 'Brandenburg', HB: 'Bremen',
+    HH: 'Hamburg', HE: 'Hessen', MV: 'Mecklenburg-Vorpommern', NI: 'Niedersachsen', NW: 'Nordrhein-Westfalen', RP: 'Rheinland-Pfalz',
+    SL: 'Saarland', SN: 'Sachsen', ST: 'Sachsen-Anhalt', SH: 'Schleswig-Holstein', TH: 'Thüringen', none: 'Keine Feiertage automatisch' };
   let state = load();
 
   function load() {
@@ -266,7 +309,7 @@
       if (!raw) return defaults();
       const d = JSON.parse(raw);
       const base = defaults();
-      return { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) } };
+      return { ...base, ...d, absences: d.absences || {}, settings: { ...base.settings, ...(d.settings || {}) } };
     } catch (e) { return defaults(); }
   }
   function save() {
@@ -357,12 +400,66 @@
       };
       rule(6 * 60, 30);
     }
-    return { list, gross, pause, autoAdded, net, target: targetFor(date) };
+    return { date, list, gross, pause, autoAdded, net, target: targetFor(date), holiday: holidayName(date), absence: state.absences[date] || null };
+  }
+  // ---------- holidays (Germany) ----------
+  const holidayCache = {};
+  function easter(y) {
+    const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
+    const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(y, month - 1, day);
+  }
+  function holidays(y) {
+    const st = state.settings.state || '';
+    const key = y + st; if (holidayCache[key]) return holidayCache[key];
+    const out = {};
+    if (st !== 'none') {
+      const E = easter(y);
+      const add = (d, name, states) => { if (!states || states.includes(st)) out[ymd(d)] = name; };
+      const fix = (m, d) => new Date(y, m - 1, d);
+      add(fix(1, 1), 'Neujahr');
+      add(fix(1, 6), 'Heilige Drei Könige', ['BW', 'BY', 'ST']);
+      add(fix(3, 8), 'Internationaler Frauentag', ['BE', 'MV']);
+      add(addDays(E, -2), 'Karfreitag');
+      add(E, 'Ostersonntag', ['BB']);
+      add(addDays(E, 1), 'Ostermontag');
+      add(fix(5, 1), 'Tag der Arbeit');
+      add(addDays(E, 39), 'Christi Himmelfahrt');
+      add(addDays(E, 49), 'Pfingstsonntag', ['BB']);
+      add(addDays(E, 50), 'Pfingstmontag');
+      add(addDays(E, 60), 'Fronleichnam', ['BW', 'BY', 'HE', 'NW', 'RP', 'SL']);
+      add(fix(8, 15), 'Mariä Himmelfahrt', ['SL']);
+      add(fix(9, 20), 'Weltkindertag', ['TH']);
+      add(fix(10, 3), 'Tag der Deutschen Einheit');
+      add(fix(10, 31), 'Reformationstag', ['BB', 'HB', 'HH', 'MV', 'NI', 'SN', 'ST', 'SH', 'TH']);
+      add(fix(11, 1), 'Allerheiligen', ['BW', 'BY', 'NW', 'RP', 'SL']);
+      const bb = fix(11, 22); while (bb.getDay() !== 3) bb.setDate(bb.getDate() - 1); // Wednesday before 23 Nov
+      add(bb, 'Buß- und Bettag', ['SN']);
+      add(fix(12, 25), '1. Weihnachtstag');
+      add(fix(12, 26), '2. Weihnachtstag');
+    }
+    return (holidayCache[key] = out);
+  }
+  const holidayName = (date) => holidays(Number(date.slice(0, 4)))[date] || null;
+  const isWorkday = (date) => state.settings.workdays.includes(parseYmd(date).getDay());
+
+  function baseTarget(date) {
+    const s = state.settings;
+    if (!s.workdays.length || !isWorkday(date)) return 0;
+    return (Number(s.weekly) || 0) * 60 / s.workdays.length;
   }
   function targetFor(date) {
-    const s = state.settings; const wd = parseYmd(date).getDay();
-    if (!s.workdays.includes(wd) || !s.workdays.length) return 0;
-    return (Number(s.weekly) || 0) * 60 / s.workdays.length;
+    if (holidayName(date)) return 0;
+    const a = state.absences[date];
+    return baseTarget(date) * (a && ABS[a.type] ? ABS[a.type].factor : 1);
+  }
+  // vacation days (whole/half) on real workdays, optionally only within a date prefix
+  function vacationDays(prefix, onlyFuture) {
+    const today = ymd(now());
+    return Object.entries(state.absences).reduce((sum, [d, a]) =>
+      sum + (d.startsWith(prefix) && (!onlyFuture || d > today) && ABS[a.type] && isWorkday(d) && !holidayName(d) ? ABS[a.type].days : 0), 0);
   }
   function rangeStats(from, toIncl) {
     let worked = 0, target = 0; const days = [];
@@ -372,8 +469,9 @@
     return { worked, target, diff: worked - target, days };
   }
   function balance() {
-    if (!state.entries.length) return state.settings.startBalance || 0;
-    const first = state.entries.map((e) => e.date).sort()[0];
+    const dates = state.entries.map((e) => e.date).concat(Object.keys(state.absences)).sort();
+    if (!dates.length) return state.settings.startBalance || 0;
+    const first = dates[0];
     const today = new Date(); const todayStr = ymd(today);
     let sum = state.settings.startBalance || 0;
     for (let d = parseYmd(first); ymd(d) <= todayStr; d = addDays(d, 1)) {
@@ -439,14 +537,24 @@
     const bal = balance(); const b = $('#sBalance');
     b.textContent = fmtDur(bal, true); b.className = bal > 0 ? 'pos' : bal < 0 ? 'neg' : '';
 
-    $('#todayList').innerHTML = st.list.length
+    $('#todayList').innerHTML = absenceRow(st) + (st.list.length
       ? st.list.map(entryRow).join('') + autoNote(st)
-      : '<div class="empty">Noch keine Einträge</div>';
+      : (st.holiday || st.absence ? '' : '<div class="empty">Noch keine Einträge</div>'));
   }
   function autoNote(st) {
     if (!st.autoAdded) return '';
     const m = Math.round(st.autoAdded);
     return `<p class="muted" style="margin:6px 0 0">− ${m} Min. gesetzliche Pause automatisch abgezogen (über 6 Std. → mind. 30 Min. Pause). Abschaltbar unter Einstellungen.</p>`;
+  }
+  function absenceRow(st) {
+    let html = '';
+    if (st.holiday) html += `<div class="absence holiday"><span class="grow">${esc(st.holiday)}</span><span class="muted">Feiertag</span></div>`;
+    if (st.absence) {
+      const a = ABS[st.absence.type] || { label: st.absence.type };
+      html += `<div class="absence"><span class="grow">${a.label}${st.absence.note ? ` <span class="muted" style="font-weight:400">· ${esc(st.absence.note)}</span>` : ''}</span>
+        <button class="icon" data-absence="${st.date}" aria-label="Abwesenheit bearbeiten">✎</button></div>`;
+    }
+    return html;
   }
   function entryRow(e) {
     const dur = Math.max(0, spanMin(e) - recordedPause(e));
@@ -488,6 +596,7 @@
           <button class="icon" data-add="${date}" aria-label="Eintrag hinzufügen">+</button></div>
         </div>
         ${st.target || st.net ? `<div class="bar"><i class="${st.net >= st.target && st.target ? 'over' : ''}" style="width:${pct}%"></i></div>` : ''}
+        ${absenceRow(st)}
         ${st.list.map(entryRow).join('')}
         ${autoNote(st)}
       </div>`;
@@ -503,12 +612,17 @@
     $('#monthTitle').textContent = `${MONTHS[first.getMonth()]} ${first.getFullYear()}`;
     $('#mWorked').textContent = fmtDur(r.worked); $('#mTarget').textContent = fmtDur(r.target);
     const d = $('#mDiff'); d.textContent = fmtDur(r.diff, true); d.className = r.diff > 0 ? 'pos' : r.diff < 0 ? 'neg' : '';
-    const rows = r.days.filter((st) => st.list.length).map((st) => {
-      const date = st.list[0].date;
-      const times = st.list.map((e) => `${e.start}–${e.end || '…'}`).join(', ');
+    const rows = r.days.filter((st) => st.list.length || st.absence || (st.holiday && isWorkday(st.date))).map((st) => {
+      const date = st.date;
+      const tags = [st.holiday, st.absence && ABS[st.absence.type] ? ABS[st.absence.type].label : null].filter(Boolean).map((t) => `<i>${esc(t)}</i>`);
+      const times = st.list.map((e) => `${e.start}–${e.end || '…'}`).concat(tags).join(', ');
       return `<tr><td>${fmtDate(date)}</td><td>${times}</td><td class="r">${Math.round(st.pause + st.autoAdded)}′</td><td class="r"><b>${fmtDur(st.net)}</b></td></tr>`;
     });
-    $('#monthTable').innerHTML = rows.join('') || '<tr><td colspan="4" class="empty">Keine Einträge in diesem Monat</td></tr>';
+    const prefix = `${first.getFullYear()}-${pad(first.getMonth() + 1)}`;
+    const vac = vacationDays(prefix);
+    const sick = Object.entries(state.absences).filter(([d, a]) => d.startsWith(prefix) && a.type === 'krank' && isWorkday(d) && !holidayName(d)).length;
+    $('#monthTable').innerHTML = (rows.join('') || '<tr><td colspan="4" class="empty">Keine Einträge in diesem Monat</td></tr>')
+      + (vac || sick ? `<tr><td colspan="4" class="muted">${vac ? `Urlaub: ${String(vac).replace('.', ',')} Tag(e)` : ''}${vac && sick ? ' · ' : ''}${sick ? `Krank: ${sick} Tag(e)` : ''}</td></tr>` : '');
   }
   function renderSettings() {
     const s = state.settings;
@@ -519,6 +633,20 @@
       `<label><input type="checkbox" value="${d}" ${s.workdays.includes(d) ? 'checked' : ''}> ${DAY_NAMES[d]}</label>`).join('');
     const per = s.workdays.length ? s.weekly * 60 / s.workdays.length : 0;
     $('#dailyTargetInfo').textContent = `Soll pro Arbeitstag: ${fmtDur(per)} Std.`;
+    $('#setState').innerHTML = Object.entries(STATES).map(([k, v]) => `<option value="${k}" ${k === (s.state || '') ? 'selected' : ''}>${v}</option>`).join('');
+    $('#setVacation').value = s.vacationDays;
+    const y = now().getFullYear(); const used = vacationDays(y + '-'); const planned = vacationDays(y + '-', true);
+    const total = Number(s.vacationDays) || 0; const n = (v) => String(v).replace('.', ',');
+    $('#vacationInfo').innerHTML = `<div class="stats">
+      <div class="stat"><b>${n(total)}</b><span>Anspruch ${y}</span></div>
+      <div class="stat"><b>${n(used)}</b><span>Verplant</span></div>
+      <div class="stat"><b class="${total - used < 0 ? 'neg' : 'pos'}">${n(total - used)}</b><span>Übrig</span></div></div>
+      ${planned ? `<p class="muted">Davon ${n(planned)} Tag(e) noch in der Zukunft.</p>` : ''}
+      <button style="margin-top:10px;width:100%" data-absence-new>Urlaub / Abwesenheit eintragen</button>`;
+    const hs = Object.entries(holidays(y)).concat(Object.entries(holidays(y + 1))).filter(([d]) => d >= ymd(now())).slice(0, 6);
+    $('#holidayList').innerHTML = s.state === 'none' ? '<p class="muted">Automatische Feiertage sind ausgeschaltet.</p>'
+      : `<p class="muted" style="margin:0 0 6px">Nächste Feiertage${s.state ? '' : ' (nur bundesweite – wähle oben dein Bundesland)'}:</p>` +
+        hs.map(([d, nm]) => `<div class="row spread" style="padding:4px 0"><span>${esc(nm)}</span><span class="muted">${fmtDate(d)}${d.slice(0, 4)}</span></div>`).join('');
   }
 
   let currentTab = 'today';
@@ -530,9 +658,31 @@
   }
 
   // ---------- edit dialog ----------
-  const dlg = $('#editDlg'); let editingId = null;
+  const dlg = $('#editDlg'); let editingId = null, editingAbsence = null;
+  function syncType() {
+    const work = $('#fType').value === 'work';
+    $('#workFields').style.display = work ? '' : 'none';
+    $('#fStart').required = work;
+    $('#dateToField').style.visibility = work || editingAbsence ? 'hidden' : 'visible';
+    $('#fDateLabel').textContent = work || editingAbsence ? 'Datum' : 'von';
+  }
+  $('#fType').addEventListener('change', syncType);
+  function openAbsence(date, isNew) {
+    editingId = null; editingAbsence = isNew ? null : date;
+    const a = isNew ? null : state.absences[date];
+    $('#editTitle').textContent = a ? 'Abwesenheit bearbeiten' : 'Abwesenheit eintragen';
+    $('#typeField').style.display = '';
+    $('#fType').value = a ? a.type : 'urlaub';
+    $('#fDate').value = date; $('#fDateTo').value = '';
+    $('#fNote').value = a ? a.note || '' : '';
+    $('#fDelete').style.visibility = a ? 'visible' : 'hidden';
+    $('#fHint').textContent = 'Bei einem Zeitraum werden nur deine Arbeitstage eingetragen – Wochenenden und Feiertage werden übersprungen.';
+    syncType(); dlg.showModal();
+  }
   function openEdit(id, presetDate) {
-    editingId = id;
+    editingId = id; editingAbsence = null;
+    $('#typeField').style.display = id ? 'none' : '';
+    $('#fType').value = 'work'; $('#fDateTo').value = '';
     const e = id ? state.entries.find((x) => x.id === id) : null;
     const isRunning = e && state.running && state.running.id === e.id;
     $('#editTitle').textContent = e ? 'Eintrag bearbeiten' : 'Eintrag hinzufügen';
@@ -544,9 +694,25 @@
     $('#fNote').value = e ? e.note || '' : '';
     $('#fDelete').style.visibility = e ? 'visible' : 'hidden';
     $('#fHint').textContent = isRunning ? 'Dieser Eintrag läuft noch – Ende leer lassen, um weiterzuarbeiten.' : 'Endet die Schicht nach Mitternacht, einfach die Endzeit am Folgetag eintragen.';
-    dlg.showModal();
+    syncType(); dlg.showModal();
   }
   $('#editForm').addEventListener('submit', (ev) => {
+    const type = $('#fType').value;
+    if (type !== 'work') {
+      const from = $('#fDate').value, to = $('#fDateTo').value || from, note = $('#fNote').value.trim();
+      if (!from) { ev.preventDefault(); return; }
+      if (to < from) { ev.preventDefault(); toast('„bis“ liegt vor dem Startdatum'); return; }
+      if (editingAbsence && editingAbsence !== from) delete state.absences[editingAbsence];
+      let count = 0;
+      for (let d = parseYmd(from); ymd(d) <= to; d = addDays(d, 1)) {
+        const k = ymd(d);
+        if (to !== from && (!isWorkday(k) || holidayName(k))) continue; // ranges: only real workdays
+        state.absences[k] = { type, note }; count++;
+      }
+      save(); render(); toast(count === 1 ? `${ABS[type].label} eingetragen` : `${ABS[type].label}: ${count} Arbeitstage eingetragen`);
+      return;
+    }
+    if (editingAbsence) delete state.absences[editingAbsence];
     const date = $('#fDate').value, start = $('#fStart').value, end = $('#fEnd').value || null;
     const pause = Math.max(0, parseInt($('#fPause').value, 10) || 0), note = $('#fNote').value.trim();
     if (!date || !start) { ev.preventDefault(); return; }
@@ -564,6 +730,10 @@
   });
   $('#fCancel').addEventListener('click', () => dlg.close());
   $('#fDelete').addEventListener('click', () => {
+    if (editingAbsence) {
+      if (!confirm('Diese Abwesenheit löschen?')) return;
+      delete state.absences[editingAbsence]; save(); dlg.close(); render(); toast('Gelöscht'); return;
+    }
     if (!editingId || !confirm('Diesen Eintrag löschen?')) return;
     state.entries = state.entries.filter((e) => e.id !== editingId);
     if (state.running && state.running.id === editingId) state.running = null;
@@ -576,21 +746,25 @@
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
-  function csv(entries) {
+  function csv(entries, prefix = '') {
     const head = ['Datum', 'Wochentag', 'Beginn', 'Ende', 'Pause (Min)', 'Arbeitszeit (Std.)', 'Notiz'];
     const q = (v) => `"${String(v).replace(/"/g, '""')}"`;
-    const lines = entries.slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).map((e) => {
+    let lines = entries.slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).map((e) => {
       const net = Math.max(0, spanMin(e) - recordedPause(e));
       const d = parseYmd(e.date);
       return [`${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`, DAY_LONG[d.getDay()], e.start, e.end || '', Math.round(recordedPause(e)),
         fmtDur(net), e.note || ''].map(q).join(';');
+    });
+    Object.entries(state.absences).filter(([k]) => k.startsWith(prefix)).sort().forEach(([k, a]) => {
+      const d = parseYmd(k); const label = ABS[a.type] ? ABS[a.type].label : a.type;
+      lines.push([`${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`, DAY_LONG[d.getDay()], '', '', '', '', label + (a.note ? ': ' + a.note : '')].map(q).join(';'));
     });
     return '﻿' + [head.map(q).join(';'), ...lines].join('\r\n');
   }
   $('#exportCsv').addEventListener('click', () => download(`zeitkompass-${ymd(now())}.csv`, csv(state.entries), 'text/csv;charset=utf-8'));
   $('#monthCsv').addEventListener('click', () => {
     const { first } = monthBounds(); const prefix = `${first.getFullYear()}-${pad(first.getMonth() + 1)}`;
-    download(`zeitkompass-${prefix}.csv`, csv(state.entries.filter((e) => e.date.startsWith(prefix))), 'text/csv;charset=utf-8');
+    download(`zeitkompass-${prefix}.csv`, csv(state.entries.filter((e) => e.date.startsWith(prefix)), prefix), 'text/csv;charset=utf-8');
   });
   $('#monthPrint').addEventListener('click', () => window.print());
   $('#exportJson').addEventListener('click', () => download(`zeitkompass-backup-${ymd(now())}.json`, JSON.stringify(state, null, 2), 'application/json'));
@@ -602,7 +776,7 @@
       if (!Array.isArray(d.entries)) throw new Error('format');
       if (!confirm(`Backup mit ${d.entries.length} Einträgen laden? Aktuelle Daten werden ersetzt.`)) return;
       const base = defaults();
-      state = { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) } };
+      state = { ...base, ...d, absences: d.absences || {}, settings: { ...base.settings, ...(d.settings || {}) } };
       save(); render(); toast('Backup geladen');
     } catch (e) { toast('Datei ist kein gültiges Backup'); }
     ev.target.value = '';
@@ -614,6 +788,8 @@
 
   // ---------- settings ----------
   $('#setWeekly').addEventListener('change', (e) => { state.settings.weekly = Math.max(0, Number(e.target.value) || 0); save(); renderSettings(); });
+  $('#setState').addEventListener('change', (e) => { state.settings.state = e.target.value; save(); renderSettings(); });
+  $('#setVacation').addEventListener('change', (e) => { state.settings.vacationDays = Math.max(0, Number(String(e.target.value).replace(',', '.')) || 0); save(); renderSettings(); });
   $('#setAutoPause').addEventListener('change', (e) => { state.settings.autoPause = e.target.value === '1'; save(); });
   $('#setStartBalance').addEventListener('change', (e) => { state.settings.startBalance = parseDur(e.target.value); save(); renderSettings(); });
   $('#setDays').addEventListener('change', () => {
@@ -629,6 +805,8 @@
     else if (t.id === 'btnPause') startPause();
     else if (t.id === 'btnPauseEnd') endPause();
     else if (t.dataset.edit) openEdit(t.dataset.edit);
+    else if (t.dataset.absence) openAbsence(t.dataset.absence, false);
+    else if (t.hasAttribute('data-absence-new')) openAbsence(ymd(now()), true);
     else if (t.dataset.add) openEdit(null, t.dataset.add);
     else if (t.hasAttribute('data-add-today')) openEdit(null, ymd(now()));
     else if (t.dataset.tab) {
