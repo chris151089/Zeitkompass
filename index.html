@@ -104,6 +104,8 @@
   @media (prefers-color-scheme: dark) { .chip.on { color: #04201d; } }
   .chip.add { border-style: dashed; color: var(--muted); }
   .cc { display: inline-block; font-size: .78rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); margin-left: 6px; vertical-align: middle; }
+  tr.off td { color: var(--muted); background: var(--bg); }
+  tr.today td:first-child { font-weight: 700; color: var(--accent); }
   .empty { text-align: center; color: var(--muted); padding: 12px 0; }
   @media print {
     nav.tabs, .toast, button { display: none !important; }
@@ -758,11 +760,13 @@
     $('#monthTitle').textContent = `${MONTHS[first.getMonth()]} ${first.getFullYear()}`;
     $('#mWorked').textContent = fmtDur(r.worked); $('#mTarget').textContent = fmtDur(r.target);
     const d = $('#mDiff'); d.textContent = fmtDur(r.diff, true); d.className = r.diff > 0 ? 'pos' : r.diff < 0 ? 'neg' : '';
-    const rows = r.days.filter((st) => st.list.length || st.absence || (st.holiday && isWorkday(st.date))).map((st) => {
-      const date = st.date;
+    // every day of the month, weekends/days off shown muted
+    const rows = r.days.map((st) => {
+      const date = st.date; const off = !isWorkday(date) || st.holiday;
       const tags = [st.holiday, st.absence && ABS[st.absence.type] ? ABS[st.absence.type].label : null].filter(Boolean).map((t) => `<i>${esc(t)}</i>`);
       const times = st.list.map((e) => `${e.start}–${e.end || '…'}`).concat(tags).join(', ');
-      return `<tr><td>${fmtDate(date)}</td><td>${times}</td><td class="r">${Math.round(st.pause + st.autoAdded)}′</td><td class="r"><b>${fmtDur(st.net)}</b></td></tr>`;
+      const has = st.list.length > 0;
+      return `<tr class="${off ? 'off' : ''}${date === ymd(now()) ? ' today' : ''}"><td>${fmtDate(date)}</td><td>${times}</td><td class="r">${has ? Math.round(st.pause + st.autoAdded) + '′' : ''}</td><td class="r">${has ? `<b>${fmtDur(st.net)}</b>` : ''}</td></tr>`;
     });
     const prefix = `${first.getFullYear()}-${pad(first.getMonth() + 1)}`;
     renderMonthCc(prefix);
