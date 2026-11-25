@@ -121,6 +121,7 @@
 
   <!-- HEUTE -->
   <section class="view active" id="view-today">
+    <div id="backupNag"></div>
     <div class="card">
       <div class="status" id="status"></div>
       <div class="clock" id="clock">0:00:00</div>
@@ -247,7 +248,9 @@
     </div>
     <div class="card">
       <h2>Daten</h2>
-      <p class="muted">Alle Daten bleiben nur in diesem Browser auf diesem Gerät. Erstelle regelmäßig ein Backup.</p>
+      <p class="muted">Alle Daten liegen nur in dieser App auf diesem Gerät. Sichere sie regelmäßig in deine iCloud: „In iCloud sichern“ → „In Dateien sichern“ → iCloud Drive. Zum Wiederherstellen dieselbe Datei mit „Backup laden“ öffnen.</p>
+      <button class="primary" style="width:100%;margin-bottom:6px" id="cloudBackup">In iCloud sichern</button>
+      <p class="muted" id="lastBackupInfo" style="margin:0 0 12px;text-align:center"></p>
       <div class="row" style="margin-bottom:10px">
         <button class="grow" id="exportCsv">Alles als CSV</button>
         <button class="grow" id="exportJson">Backup speichern</button>
@@ -806,6 +809,7 @@
 
   let currentTab = 'today';
   function render() {
+    if (typeof renderBackupInfo === 'function') try { renderBackupInfo(); } catch (e) {}
     if (currentTab === 'today') renderToday();
     if (currentTab === 'week') renderWeek();
     if (currentTab === 'month') renderMonth();
@@ -925,7 +929,31 @@
     download(`zeitkompass-${prefix}.csv`, csv(state.entries.filter((e) => e.date.startsWith(prefix)), prefix), 'text/csv;charset=utf-8');
   });
   $('#monthPrint').addEventListener('click', () => window.print());
-  $('#exportJson').addEventListener('click', () => download(`zeitkompass-backup-${ymd(now())}.json`, JSON.stringify(state, null, 2), 'application/json'));
+  // ---------- iCloud backup via share sheet ----------
+  const LB_KEY = KEY + '.lastBackup';
+  const getLastBackup = () => { try { return localStorage.getItem(LB_KEY) || ''; } catch (e) { return ''; } };
+  const setLastBackup = () => { try { localStorage.setItem(LB_KEY, new Date().toISOString()); } catch (e) {} };
+  function daysSinceBackup() { const l = getLastBackup(); return l ? Math.floor((Date.now() - new Date(l)) / 86400000) : null; }
+  async function backupToCloud() {
+    const json = JSON.stringify(state, null, 2);
+    const file = new File([json], 'Zeitkompass-Backup.json', { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: 'Zeitkompass-Backup' }); }
+      catch (e) { if (e && e.name === 'AbortError') return; toast('Teilen nicht möglich – Datei wird heruntergeladen'); download(file.name, json, 'application/json'); }
+    } else download(file.name, json, 'application/json');
+    setLastBackup(); render(); toast('Backup erstellt');
+  }
+  function renderBackupInfo() {
+    const d = daysSinceBackup(); const l = getLastBackup();
+    if ($('#lastBackupInfo')) $('#lastBackupInfo').textContent = l
+      ? `Zuletzt gesichert: ${fmtDate(ymd(new Date(l)))}${new Date(l).getFullYear()}, ${hm(new Date(l))} Uhr` : 'Noch nie gesichert';
+    const show = state.entries.length > 0 && (d === null || d >= 7);
+    setHtml('#backupNag', show ? `<div class="card" style="border-color:var(--warn);background:var(--warn-soft)">
+      <div class="row spread"><span class="grow" style="color:var(--warn);font-weight:600">${d === null ? 'Noch kein Backup' : `Letztes Backup vor ${d} Tagen`}</span>
+      <button class="warn" data-cloud-backup>In iCloud sichern</button></div></div>` : '');
+  }
+  $('#cloudBackup').addEventListener('click', backupToCloud);
+  $('#exportJson').addEventListener('click', () => { download(`zeitkompass-backup-${ymd(now())}.json`, JSON.stringify(state, null, 2), 'application/json'); setLastBackup(); render(); });
   $('#importBtn').addEventListener('click', () => $('#importFile').click());
   $('#importFile').addEventListener('change', async (ev) => {
     const f = ev.target.files[0]; if (!f) return;
@@ -1069,6 +1097,7 @@
     else if (t.id === 'btnOut') clockOut();
     else if (t.id === 'btnPause') startPause();
     else if (t.id === 'btnPauseEnd') endPause();
+    else if (t.hasAttribute('data-cloud-backup')) backupToCloud();
     else if (t.dataset.edit) openEdit(t.dataset.edit);
     else if (t.hasAttribute('data-cc-new')) newCc();
     else if (t.hasAttribute('data-cc')) switchCc(t.dataset.cc);
