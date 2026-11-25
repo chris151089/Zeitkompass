@@ -259,9 +259,9 @@
       <div class="row">
         <button class="grow danger" id="resetBtn">Alles löschen</button>
       </div>
-      <p class="muted" style="margin:10px 0 0">Monatsjournal: XML-Export aus der Zeiterfassung deines Arbeitgebers (PZE). Die Tage dieses Monats werden durch die offiziellen Daten ersetzt, alles andere bleibt.</p>
-      <input type="file" id="importFile" accept="application/json,.json" hidden>
-      <input type="file" id="xmlFile" accept=".xml,text/xml,application/xml" hidden>
+      <p class="muted" style="margin:10px 0 0">Monatsjournal: XML-Export aus der Zeiterfassung deines Arbeitgebers (PZE). Du kannst mehrere Monate auf einmal auswählen. Die Tage dieser Monate werden durch die offiziellen Daten ersetzt, alles andere bleibt.</p>
+      <input type="file" id="importFile" accept="application/json,.json,.xml,text/xml,application/xml" hidden>
+      <input type="file" id="xmlFile" accept=".xml,text/xml,application/xml" multiple hidden>
     </div>
   </section>
 </main>
@@ -929,6 +929,7 @@
   $('#importBtn').addEventListener('click', () => $('#importFile').click());
   $('#importFile').addEventListener('change', async (ev) => {
     const f = ev.target.files[0]; if (!f) return;
+    if (/\.xml$/i.test(f.name) || /^\s*(\uFEFF)?<\?xml/.test(await f.slice(0, 64).text())) { ev.target.value = ''; await importXmlFiles([f]); return; }
     try {
       const d = JSON.parse(await f.text());
       if (!Array.isArray(d.entries)) throw new Error('format');
@@ -952,7 +953,7 @@
     };
     const toIso = (s) => { const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s || ''); return m ? `${m[3]}-${m[2]}-${m[1]}` : null; };
     const num = (s) => Number(String(s || '').replace(/\./g, '').replace(',', '.')) || 0;
-    const out = { days: [] };
+    const out = { days: [], periods: {} };
     days.forEach((di) => {
       const d = cols(di); const date = toIso(d.Date__Period_Start_); if (!date) return;
       const segs = [[d.Tagesabschnitt_Beginn, d.Tagesabschnitt_Ende, d.Tagesabschnitt_Erfassungscode, d.Tagesabschnitt__Kontierung_1_, d.Tagesabschnitt_Stunden]];
@@ -967,7 +968,11 @@
       // monthly summary columns are repeated on every day row
       const titles = Array.from({ length: 12 }, (_, i) => d[`Kontotitel_${i + 1}`]);
       const zi = titles.indexOf('ZA SALDO') + 1;
-      if (zi) { out.vorsaldo = num(d[`VorsaldoOhneAuszahlung_${zi}`]); out.endsaldo = num(d.EndSumme || d[`SummeNettoLfdMonat_${zi}`]); }
+      if (zi) {
+        // summary columns are per period (month); a file can hold several months
+        const per = (out.periods = out.periods || {})[date.slice(0, 7)] = { last: date, vorsaldo: num(d[`VorsaldoOhneAuszahlung_${zi}`]), endsaldo: num(d.EndSumme || d[`SummeNettoLfdMonat_${zi}`]) };
+        if (out.vorsaldo === undefined) out.vorsaldo = per.vorsaldo;
+      }
       if (d.Anspruchstage) out.vacation = num(d.Anspruchstage);
     });
     return out;
@@ -994,26 +999,39 @@
   }
   const fmtH = (h) => (h > 0 ? '+' : h < 0 ? '−' : '') + Math.abs(h).toFixed(2).replace('.', ',');
   $('#xmlBtn').addEventListener('click', () => $('#xmlFile').click());
-  $('#xmlFile').addEventListener('change', async (ev) => {
-    const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
-    let data;
-    try { data = parsePze(await f.text()); } catch (e) { toast('Datei ist kein lesbares Monatsjournal'); return; }
+  async function importXmlFiles(files) {
+    const all = [];
+    for (const f of files) {
+      try { all.push(parsePze(await f.text())); } catch (e) { toast(`„${f.name}“ ist kein lesbares Monatsjournal`); return; }
+    }
+    if (!all.length) return;
+    const data = { days: all.flatMap((x) => x.days).sort((a, b) => a.date.localeCompare(b.date)), periods: Object.assign({}, ...all.map((x) => x.periods)) };
+    const first = all.slice().sort((a, b) => a.days[0].date.localeCompare(b.days[0].date))[0];
+    data.vorsaldo = first.vorsaldo;
     const from = data.days[0].date, to = data.days[data.days.length - 1].date;
-    const label = `${fmtDate(from)}${from.slice(0, 4)} – ${fmtDate(to)}${to.slice(0, 4)}`;
-    if (!confirm(`Monatsjournal ${label} importieren?\nDie Einträge dieser Tage werden durch die Daten deines Arbeitgebers ersetzt.`)) return;
+    const months = Object.keys(data.periods).sort();
+    const mName = (k) => `${MONTHS[Number(k.slice(5, 7)) - 1]} ${k.slice(0, 4)}`;
+    const label = months.length ? months.map(mName).join(', ') : `${fmtDate(from)} – ${fmtDate(to)}`;
+    if (!confirm(`Monatsjournal importieren: ${label}?\nDie Einträge dieser Tage werden durch die Daten deines Arbeitgebers ersetzt.`)) return;
     const ccs = new Set(data.days.flatMap((d) => d.list.map((x) => x.cc)).filter(Boolean));
     const useCc = ccs.size > 0 && confirm(`Kontierung (${[...ccs].join(', ')}) als Kostenstelle übernehmen?`);
     const r = applyPze(data, useCc);
     const bf = state.settings.balanceFrom;
     if (data.vorsaldo !== undefined && (!bf || from <= bf || !state.entries.some((e) => e.date < from))) {
-      if (confirm(`ZA-Saldo laut Arbeitgeber vor diesem Monat: ${fmtH(data.vorsaldo)} Std.\nAls Übertrag übernehmen und das Überstundenkonto ab ${fmtDate(from)}${from.slice(0, 4)} rechnen?`)) {
+      if (confirm(`ZA-Saldo laut Arbeitgeber vor ${mName(from.slice(0, 7))}: ${fmtH(data.vorsaldo)} Std.\nAls Übertrag übernehmen und das Überstundenkonto ab ${fmtDate(from)}${from.slice(0, 4)} rechnen?`)) {
         state.settings.startBalance = Math.round(data.vorsaldo * 60); state.settings.balanceFrom = from;
       }
     }
     save(); render();
     let msg = `${r.work} Zeitabschnitte und ${r.abs} Abwesenheiten importiert.`;
-    if (data.endsaldo !== undefined) msg += `\n\nZA-Saldo laut Arbeitgeber am ${fmtDate(to)}: ${fmtH(data.endsaldo)}\nZeitkompass am selben Tag: ${fmtDur(balance(to), true)}`;
+    if (months.length) {
+      msg += '\n\nZA-Saldo am Monatsende – Arbeitgeber / Zeitkompass:';
+      months.forEach((k) => { const p = data.periods[k]; msg += `\n${mName(k)}: ${fmtH(p.endsaldo)} / ${fmtDur(balance(p.last), true)}`; });
+    }
     alert(msg);
+  }
+  $('#xmlFile').addEventListener('change', async (ev) => {
+    const files = [...ev.target.files]; ev.target.value = ''; if (files.length) await importXmlFiles(files);
   });
   $('#resetBtn').addEventListener('click', () => {
     if (!confirm('Wirklich ALLE Einträge und Einstellungen löschen?')) return;
