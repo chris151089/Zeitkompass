@@ -78,6 +78,7 @@
   .days { display: flex; gap: 6px; flex-wrap: wrap; }
   .days label { display: flex; align-items: center; gap: 4px; margin: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); }
   .days input { width: auto; min-height: 0; }
+  .days input.plan { width: 64px; min-height: 36px; padding: 6px; text-align: center; }
   nav.tabs {
     position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line);
     display: flex; padding-bottom: env(safe-area-inset-bottom); z-index: 5;
@@ -126,6 +127,7 @@
         <div class="stat"><b id="sWeek">0,00</b><span>Diese Woche</span></div>
         <div class="stat"><b id="sBalance">0,00</b><span>Überstunden</span></div>
       </div>
+      <p class="muted" id="balanceSplit" style="margin:10px 0 0;text-align:center"></p>
     </div>
     <div class="card">
       <div class="row spread" style="margin-bottom:6px">
@@ -188,6 +190,16 @@
       <div class="field">
         <label>Arbeitstage</label>
         <div class="days" id="setDays"></div>
+      </div>
+      <div class="field">
+        <label>Dienstplan – tatsächliche Stunden pro Tag (optional)</label>
+        <div class="days" id="setPlan"></div>
+        <p class="muted" style="margin:6px 0 0">Leer lassen, wenn du genau das Soll arbeitest. Damit zeigt die App, wie viel deiner Überstunden Einarbeitszeit für den Zeitausgleich ist.</p>
+      </div>
+      <div class="field">
+        <label for="setZa">Regelmäßiger Zeitausgleich: jeder 2. Freitag frei ab</label>
+        <input id="setZa" type="date">
+        <p class="muted" style="margin:6px 0 0">Datum eines freien Freitags eintragen – die App markiert dann jeden 2. Freitag als Zeitausgleich. Leer = aus.</p>
       </div>
       <div class="field">
         <label for="setState">Land / Bundesland (für gesetzliche Feiertage)</label>
@@ -289,7 +301,7 @@
     entries: [],           // {id, date:'YYYY-MM-DD', start:'HH:MM', end:'HH:MM'|null, pause:min, note}
     running: null,         // {id, pauseStart: ms|null}
     absences: {},          // {'YYYY-MM-DD': {type, note}}
-    settings: { weekly: 40, workdays: [1,2,3,4,5], autoPause: true, startBalance: 0, state: 'AT', vacationDays: 25 }
+    settings: { weekly: 40, workdays: [1,2,3,4,5], autoPause: true, startBalance: 0, state: 'AT', vacationDays: 25, plan: {}, zaStart: '' }
   });
   const ABS = {
     urlaub:      { label: 'Urlaub', factor: 0, days: 1 },
@@ -400,7 +412,7 @@
       };
       rule(6 * 60, 30);
     }
-    return { date, list, gross, pause, autoAdded, net, target: targetFor(date), holiday: holidayName(date), absence: state.absences[date] || null };
+    return { date, list, gross, pause, autoAdded, net, target: targetFor(date), holiday: holidayName(date), absence: absenceFor(date) };
   }
   // ---------- holidays (Germany) ----------
   const holidayCache = {};
@@ -460,8 +472,39 @@
   }
   function targetFor(date) {
     if (holidayName(date)) return 0;
-    const a = state.absences[date];
+    const a = absenceFor(date);
     return baseTarget(date) * (a && ABS[a.type] ? ABS[a.type].factor : 1);
+  }
+  // recurring time off (Zeitausgleich) every 14 days from zaStart
+  function isAutoZa(date) {
+    const z = state.settings.zaStart; if (!z || date < z) return false;
+    const diff = Math.round((parseYmd(date) - parseYmd(z)) / 86400000);
+    return diff % 14 === 0;
+  }
+  function absenceFor(date) {
+    if (state.absences[date]) return state.absences[date];
+    if (isAutoZa(date) && !holidayName(date)) return { type: 'gleittag', note: 'jeder 2. Freitag', auto: true };
+    return null;
+  }
+  // planned hours (minutes) according to the duty roster; null if no roster set for that weekday
+  function planFor(date) {
+    const v = (state.settings.plan || {})[parseYmd(date).getDay()];
+    if (v === undefined || v === null || v === '') return null;
+    return Number(v) * 60;
+  }
+  // part of the balance that is just "pre-worked" time per roster (Einarbeitszeit)
+  function preworked() {
+    const dates = state.entries.map((e) => e.date).concat(Object.keys(state.absences)).sort();
+    if (!dates.length) return 0;
+    const todayStr = ymd(now()); let sum = 0;
+    for (let d = parseYmd(dates[0]); ymd(d) < todayStr; d = addDays(d, 1)) {
+      const k = ymd(d); const base = baseTarget(k); const plan = planFor(k);
+      if (!base || plan === null || holidayName(k)) continue;
+      const a = absenceFor(k);
+      if (a && !a.auto) continue;               // vacation, sick … no roster effect
+      sum += (a && a.auto ? 0 : plan) - base;    // free roster Friday: 0 h planned
+    }
+    return sum;
   }
   // vacation days (whole/half) on real workdays, optionally only within a date prefix
   function vacationDays(prefix, onlyFuture) {
@@ -544,6 +587,11 @@
     $('#sWeek').textContent = fmtDur(wk.worked);
     const bal = balance(); const b = $('#sBalance');
     b.textContent = fmtDur(bal, true); b.className = bal > 0 ? 'pos' : bal < 0 ? 'neg' : '';
+    const hasPlan = Object.values(state.settings.plan || {}).some((v) => v !== '' && v !== null);
+    if (hasPlan) {
+      const pre = preworked(); const extra = bal - pre;
+      $('#balanceSplit').innerHTML = `davon Einarbeitszeit (Dienstplan) <b>${fmtDur(pre, true)}</b> · Mehrarbeit <b class="${extra > 0 ? 'pos' : extra < 0 ? 'neg' : ''}">${fmtDur(extra, true)}</b>`;
+    } else $('#balanceSplit').innerHTML = '';
 
     $('#todayList').innerHTML = absenceRow(st) + (st.list.length
       ? st.list.map(entryRow).join('') + autoNote(st)
@@ -560,7 +608,7 @@
     if (st.absence) {
       const a = ABS[st.absence.type] || { label: st.absence.type };
       html += `<div class="absence"><span class="grow">${a.label}${st.absence.note ? ` <span class="muted" style="font-weight:400">· ${esc(st.absence.note)}</span>` : ''}</span>
-        <button class="icon" data-absence="${st.date}" aria-label="Abwesenheit bearbeiten">✎</button></div>`;
+        ${st.absence.auto ? '' : `<button class="icon" data-absence="${st.date}" aria-label="Abwesenheit bearbeiten">✎</button>`}</div>`;
     }
     return html;
   }
@@ -643,6 +691,10 @@
     $('#dailyTargetInfo').textContent = `Soll pro Arbeitstag: ${fmtDur(per)} Std.`;
     $('#setState').innerHTML = Object.entries(STATES).map(([k, v]) => `<option value="${k}" ${k === (s.state || '') ? 'selected' : ''}>${v}</option>`).join('');
     $('#setVacation').value = s.vacationDays;
+    $('#setZa').value = s.zaStart || '';
+    $('#setPlan').innerHTML = [1, 2, 3, 4, 5, 6, 0].filter((d) => s.workdays.includes(d)).map((d) => {
+      const v = (s.plan || {})[d]; return `<label>${DAY_NAMES[d]} <input class="plan" data-day="${d}" type="text" inputmode="decimal" placeholder="–" value="${v === undefined || v === '' || v === null ? '' : String(v).replace('.', ',')}"></label>`;
+    }).join('');
     const y = now().getFullYear(); const used = vacationDays(y + '-'); const planned = vacationDays(y + '-', true);
     const total = Number(s.vacationDays) || 0; const n = (v) => String(v).replace('.', ',');
     $('#vacationInfo').innerHTML = `<div class="stats">
@@ -798,6 +850,18 @@
   $('#setWeekly').addEventListener('change', (e) => { state.settings.weekly = Math.max(0, Number(e.target.value) || 0); save(); renderSettings(); });
   $('#setState').addEventListener('change', (e) => { state.settings.state = e.target.value; save(); renderSettings(); });
   $('#setVacation').addEventListener('change', (e) => { state.settings.vacationDays = Math.max(0, Number(String(e.target.value).replace(',', '.')) || 0); save(); renderSettings(); });
+  $('#setZa').addEventListener('change', (e) => {
+    const v = e.target.value;
+    if (v && parseYmd(v).getDay() !== 5 && !confirm('Das Datum ist kein Freitag. Trotzdem alle 2 Wochen ab diesem Tag?')) { renderSettings(); return; }
+    state.settings.zaStart = v; save(); renderSettings();
+  });
+  $('#setPlan').addEventListener('change', (e) => {
+    const d = e.target.dataset.day; if (d === undefined) return;
+    const raw = String(e.target.value).trim().replace(',', '.');
+    state.settings.plan = { ...(state.settings.plan || {}) };
+    if (raw === '' || isNaN(Number(raw))) delete state.settings.plan[d]; else state.settings.plan[d] = Number(raw);
+    save(); renderSettings();
+  });
   $('#setAutoPause').addEventListener('change', (e) => { state.settings.autoPause = e.target.value === '1'; save(); });
   $('#setStartBalance').addEventListener('change', (e) => { state.settings.startBalance = parseDur(e.target.value); save(); renderSettings(); });
   $('#setDays').addEventListener('change', () => {
