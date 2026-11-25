@@ -362,13 +362,32 @@
     SL: 'DE – Saarland', SN: 'DE – Sachsen', ST: 'DE – Sachsen-Anhalt', SH: 'DE – Schleswig-Holstein', TH: 'DE – Thüringen', none: 'Keine Feiertage automatisch' };
   let state = load();
 
+  // PZE journals book the lunch break as its own block with code PAUSE inside the attendance block.
+  // Turn such blocks into a break (von–bis) of the surrounding work entry instead of counting them as work.
+  function foldPauseEntries(st) {
+    const m = (t) => { const [h, mi] = String(t).split(':').map(Number); return h * 60 + mi; };
+    const pauses = st.entries.filter((e) => /^PAUSE$/i.test(e.note || '') && e.end);
+    if (!pauses.length) return st;
+    pauses.forEach((p) => {
+      const host = st.entries.find((e) => e !== p && e.date === p.date && !/^PAUSE$/i.test(e.note || '') && e.end &&
+        m(e.start) <= m(p.start) && m(p.end) <= m(e.end));
+      if (host) {
+        const b = { from: p.start, to: p.end };
+        if (!host.breaks) host.breaks = host.pause ? null : [];
+        if (host.breaks) { host.breaks.push(b); host.breaks.sort((x, y) => x.from.localeCompare(y.from)); } else delete host.breaks;
+        host.pause = (Number(host.pause) || 0) + (m(p.end) - m(p.start));
+      }
+    });
+    st.entries = st.entries.filter((e) => !pauses.includes(e));
+    return st;
+  }
   function load() {
     try {
       const raw = localStorage.getItem(KEY);
       if (!raw) return defaults();
       const d = JSON.parse(raw);
       const base = defaults();
-      return { ...base, ...d, absences: d.absences || {}, costCenters: d.costCenters || [], settings: { ...base.settings, ...(d.settings || {}) } };
+      return foldPauseEntries({ ...base, ...d, absences: d.absences || {}, costCenters: d.costCenters || [], settings: { ...base.settings, ...(d.settings || {}) } });
     } catch (e) { return defaults(); }
   }
   function save() {
@@ -449,7 +468,8 @@
     }
     let net = Math.max(0, gross - pause);
     let autoAdded = 0;
-    if (state.settings.autoPause) {
+    // business trips (PZE codes "DR AKTIV"/"DR PASSIV"): employer deducts no automatic break
+    if (state.settings.autoPause && !list.some((e) => /^DR\b/i.test(e.note || ''))) {
       // >6h → at least 30 min break. Deduct only the shortfall,
       // and never push the worked time below 6h.
       let brk = pause + gaps;
@@ -1034,7 +1054,7 @@
       if (!confirm(`Backup ${when}laden?\n${d.entries.length} Einträge${lastDay ? `, letzter am ${fmtDate(lastDay)}${lastDay.slice(0, 4)}` : ''}.\n\nDie aktuellen Daten in der App werden ersetzt.`)) return;
       delete d.savedAt;
       const base = defaults();
-      state = { ...base, ...d, absences: d.absences || {}, costCenters: d.costCenters || [], settings: { ...base.settings, ...(d.settings || {}) } };
+      state = foldPauseEntries({ ...base, ...d, absences: d.absences || {}, costCenters: d.costCenters || [], settings: { ...base.settings, ...(d.settings || {}) } });
       save(); render(); toast('Backup geladen');
     } catch (e) { toast('Datei ist kein gültiges Backup'); }
     ev.target.value = '';
@@ -1090,10 +1110,11 @@
         if (!x.start || !x.end || x.start === x.end) return;              // zero-length auto bookings
         const cc = useCc ? x.cc : '';
         state.entries.push({ id: uid(), date, start: x.start, end: x.end, pause: 0, note: x.code === 'ANW' ? '' : x.code, cc });
-        if (cc) touchCc(cc);
-        work++;
+        if (cc && x.code !== 'PAUSE') touchCc(cc);
+        if (x.code !== 'PAUSE') work++;
       });
     });
+    foldPauseEntries(state);                                                // PAUSE blocks → breaks
     return { work, abs };
   }
   const fmtH = (h) => (h > 0 ? '+' : h < 0 ? '−' : '') + Math.abs(h).toFixed(2).replace('.', ',');
@@ -1200,6 +1221,9 @@
     const t = $('#toast'); t.textContent = msg; t.classList.add('show');
     clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
   }
+
+  // test hook: ?debug=1 exposes the balance calculation
+  if (/[?&]debug=1/.test(location.search)) { window.__bal = balance; window.__day = (d) => { const x = dayStats(d); return { net: x.net, target: x.target, abs: x.absence && x.absence.type, n: x.list.length }; }; }
 
   // live updates
   setInterval(() => { if (currentTab === 'today') { if (state.running) renderToday(); } }, 1000);
