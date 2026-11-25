@@ -106,6 +106,8 @@
   .cc { display: inline-block; font-size: .78rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); margin-left: 6px; vertical-align: middle; }
   tr.off td { color: var(--muted); background: var(--bg); }
   tr.today td:first-child { font-weight: 700; color: var(--accent); }
+  .break-row { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr) auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .break-row span { color: var(--muted); }
   .empty { text-align: center; color: var(--muted); padding: 12px 0; }
   @media print {
     nav.tabs, .toast, button { display: none !important; }
@@ -309,7 +311,12 @@
       <div class="field"><label for="fStart">Beginn</label><input id="fStart" type="time" required></div>
       <div class="field"><label for="fEnd">Ende</label><input id="fEnd" type="time"></div>
     </div>
-    <div class="field"><label for="fPause">Pause (Minuten)</label><input id="fPause" type="number" min="0" step="1" inputmode="numeric"></div>
+    <div class="field">
+      <label>Pausen (von – bis)</label>
+      <div id="breakRows"></div>
+      <button type="button" id="addBreak" style="width:100%">+ Pause von–bis</button>
+    </div>
+    <div class="field"><label for="fPause" id="fPauseLabel">Pause gesamt (Minuten)</label><input id="fPause" type="number" min="0" step="1" inputmode="numeric"></div>
     <div class="field"><label for="fCc">Kostenstelle</label><input id="fCc" type="text" maxlength="80" list="ccOptions" placeholder="optional"><datalist id="ccOptions"></datalist></div>
     </div>
     <div class="field"><label for="fNote">Notiz / Projekt</label><input id="fNote" type="text" maxlength="200" placeholder="optional"></div>
@@ -645,7 +652,10 @@
   }
   function endPause(silent) {
     const r = state.running; const e = runningEntry(); if (!r || !e || !r.pauseStart) return;
-    e.pause = Math.round((Number(e.pause) || 0) + (Date.now() - r.pauseStart) / 60000);
+    const mins = Math.round((Date.now() - r.pauseStart) / 60000);
+    e.pause = (Number(e.pause) || 0) + mins;
+    // keep von–bis only if all pauses of this entry are known as ranges
+    if (mins > 0 && (e.breaks || !((Number(e.pause) || 0) - mins))) (e.breaks = e.breaks || []).push({ from: hm(new Date(r.pauseStart)), to: hm(new Date()) });
     r.pauseStart = null; save();
     if (!silent) { render(); toast('Pause beendet'); }
   }
@@ -704,12 +714,16 @@
     }
     return html;
   }
+  function pauseText(e) {
+    if (e.breaks && e.breaks.length && !liveExtraPause(e)) return 'Pause ' + e.breaks.map((b) => `${b.from}–${b.to}`).join(', ');
+    return e.pause || liveExtraPause(e) ? `Pause ${Math.round(recordedPause(e))} Min.` : '';
+  }
   function entryRow(e) {
     const dur = Math.max(0, spanMin(e) - recordedPause(e));
     return `<div class="entry">
       <div class="grow">
         <div class="t">${e.start} – ${e.end || '<span class="pill" style="font-size:.75rem">läuft</span>'}${e.cc ? `<span class="cc">${esc(e.cc)}</span>` : ''}</div>
-        <div class="note">${e.pause || liveExtraPause(e) ? `Pause ${Math.round(recordedPause(e))} Min.` : ''}${e.note ? (e.pause ? ' · ' : '') + esc(e.note) : ''}</div>
+        <div class="note">${pauseText(e)}${e.note ? (pauseText(e) ? ' · ' : '') + esc(e.note) : ''}</div>
       </div>
       <b style="font-variant-numeric:tabular-nums">${fmtDur(dur)}</b>
       <button class="icon" data-edit="${e.id}" aria-label="Bearbeiten">✎</button>
@@ -846,11 +860,34 @@
     $('#typeField').style.display = '';
     $('#fType').value = a ? a.type : 'urlaub';
     $('#fDate').value = date; $('#fDateTo').value = '';
+    $('#breakRows').innerHTML = ''; $('#fPause').value = 30; syncBreaks();
     $('#fNote').value = a ? a.note || '' : '';
     $('#fDelete').style.visibility = a ? 'visible' : 'hidden';
     $('#fHint').textContent = 'Bei einem Zeitraum werden nur deine Arbeitstage eingetragen – Wochenenden und Feiertage werden übersprungen.';
     syncType(); dlg.showModal();
   }
+  // ---------- break rows (von–bis) ----------
+  const breakMin = (b) => { let d = toMin(b.to) - toMin(b.from); if (d < 0) d += 1440; return d; };
+  function readBreaks() {
+    return [...document.querySelectorAll('#breakRows .break-row')].map((r) => ({ from: r.querySelector('.bf').value, to: r.querySelector('.bt').value }))
+      .filter((b) => b.from && b.to && b.from !== b.to).sort((a, b) => a.from.localeCompare(b.from));
+  }
+  function syncBreaks() {
+    const list = readBreaks(); const f = $('#fPause');
+    if (list.length) { f.value = list.reduce((a, b) => a + breakMin(b), 0); f.readOnly = true; $('#fPauseLabel').textContent = 'Pause gesamt (Minuten, aus von–bis berechnet)'; }
+    else { f.readOnly = false; $('#fPauseLabel').textContent = 'Pause gesamt (Minuten)'; }
+  }
+  function addBreakRow(b = { from: '', to: '' }) {
+    const row = document.createElement('div'); row.className = 'break-row';
+    row.innerHTML = `<input class="bf" type="time" value="${esc(b.from)}" aria-label="Pause von"><span>–</span><input class="bt" type="time" value="${esc(b.to)}" aria-label="Pause bis"><button type="button" class="icon danger" aria-label="Pause entfernen">✕</button>`;
+    row.querySelector('button').addEventListener('click', () => { row.remove(); syncBreaks(); });
+    row.querySelectorAll('input').forEach((i) => i.addEventListener('input', syncBreaks));
+    $('#breakRows').appendChild(row);
+  }
+  $('#addBreak').addEventListener('click', () => {
+    const last = readBreaks().pop();
+    addBreakRow(last ? { from: last.to, to: '' } : { from: '12:00', to: '12:30' }); syncBreaks();
+  });
   function openEdit(id, presetDate) {
     editingId = id; editingAbsence = null;
     $('#typeField').style.display = id ? 'none' : '';
@@ -863,6 +900,9 @@
     $('#fEnd').value = e ? (e.end || '') : '16:30';
     $('#fEnd').required = !isRunning;
     $('#fPause').value = e ? (e.pause || 0) : 30;
+    $('#breakRows').innerHTML = '';
+    (e && e.breaks ? e.breaks : []).forEach((b) => addBreakRow(b));
+    syncBreaks();
     $('#fNote').value = e ? e.note || '' : '';
     $('#fCc').value = e ? e.cc || '' : (state.currentCc || '');
     $('#ccOptions').innerHTML = state.costCenters.map((c) => `<option value="${esc(c)}">`).join('');
@@ -888,8 +928,14 @@
     }
     if (editingAbsence) delete state.absences[editingAbsence];
     const date = $('#fDate').value, start = $('#fStart').value, end = $('#fEnd').value || null;
-    const pause = Math.max(0, parseInt($('#fPause').value, 10) || 0), note = $('#fNote').value.trim();
+    const breaks = readBreaks();
+    const pause = breaks.length ? breaks.reduce((a, b) => a + breakMin(b), 0) : Math.max(0, parseInt($('#fPause').value, 10) || 0), note = $('#fNote').value.trim();
     if (!date || !start) { ev.preventDefault(); return; }
+    if (end && breaks.some((b) => {
+      const s0 = toMin(start), norm = (t) => { let x = toMin(t) - s0; return x < 0 ? x + 1440 : x; };
+      let len = toMin(end) - s0; if (len < 0) len += 1440;
+      return norm(b.from) > len || norm(b.to) > len || norm(b.to) < norm(b.from);
+    })) { ev.preventDefault(); toast('Pause liegt nicht zwischen Beginn und Ende'); return; }
     let e = editingId ? state.entries.find((x) => x.id === editingId) : null;
     const isRunning = e && state.running && state.running.id === e.id;
     if (!end && !isRunning) { ev.preventDefault(); toast('Bitte Endzeit eintragen'); return; }
@@ -900,6 +946,7 @@
     if (!e) { e = { id: uid() }; state.entries.push(e); }
     const cc = $('#fCc').value.trim().slice(0, 80);
     Object.assign(e, { date, start, end, pause, note, cc }); touchCc(cc);
+    if (breaks.length) e.breaks = breaks; else delete e.breaks;
     if (isRunning && end) state.running = null;
     save(); render(); toast('Gespeichert');
   });
@@ -922,17 +969,17 @@
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
   function csv(entries, prefix = '') {
-    const head = ['Datum', 'Wochentag', 'Beginn', 'Ende', 'Pause (Min)', 'Arbeitszeit (Std.)', 'Kostenstelle', 'Notiz'];
+    const head = ['Datum', 'Wochentag', 'Beginn', 'Ende', 'Pause (Min)', 'Pausenzeiten', 'Arbeitszeit (Std.)', 'Kostenstelle', 'Notiz'];
     const q = (v) => `"${String(v).replace(/"/g, '""')}"`;
     let lines = entries.slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).map((e) => {
       const net = Math.max(0, spanMin(e) - recordedPause(e));
       const d = parseYmd(e.date);
       return [`${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`, DAY_LONG[d.getDay()], e.start, e.end || '', Math.round(recordedPause(e)),
-        fmtDur(net), e.cc || '', e.note || ''].map(q).join(';');
+        (e.breaks || []).map((b) => `${b.from}-${b.to}`).join(', '), fmtDur(net), e.cc || '', e.note || ''].map(q).join(';');
     });
     Object.entries(state.absences).filter(([k]) => k.startsWith(prefix)).sort().forEach(([k, a]) => {
       const d = parseYmd(k); const label = ABS[a.type] ? ABS[a.type].label : a.type;
-      lines.push([`${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`, DAY_LONG[d.getDay()], '', '', '', '', '', label + (a.note ? ': ' + a.note : '')].map(q).join(';'));
+      lines.push([`${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`, DAY_LONG[d.getDay()], '', '', '', '', '', '', label + (a.note ? ': ' + a.note : '')].map(q).join(';'));
     });
     return '﻿' + [head.map(q).join(';'), ...lines].join('\r\n');
   }
