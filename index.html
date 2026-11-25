@@ -190,7 +190,7 @@
         <div class="days" id="setDays"></div>
       </div>
       <div class="field">
-        <label for="setState">Bundesland (für gesetzliche Feiertage)</label>
+        <label for="setState">Land / Bundesland (für gesetzliche Feiertage)</label>
         <select id="setState"></select>
       </div>
       <div class="field">
@@ -198,7 +198,7 @@
         <input id="setVacation" type="number" min="0" max="60" step="0.5" inputmode="decimal">
       </div>
       <div class="field">
-        <label for="setAutoPause">Automatische Pause (gesetzlich, ArbZG)</label>
+        <label for="setAutoPause">Automatische Pause (gesetzlich, AZG / ArbZG)</label>
         <select id="setAutoPause">
           <option value="1">Ja: mind. 30 Min. ab 6 Std.</option>
           <option value="0">Nein, nur erfasste Pausen</option>
@@ -246,9 +246,9 @@
         <option value="work">Arbeitszeit</option>
         <option value="urlaub">Urlaub</option>
         <option value="urlaub_halb">Urlaub (halber Tag)</option>
-        <option value="krank">Krank</option>
+        <option value="krank">Krankenstand</option>
         <option value="feiertag">Feiertag / frei (Betrieb)</option>
-        <option value="gleittag">Überstundenabbau (Gleittag)</option>
+        <option value="gleittag">Zeitausgleich (Überstundenabbau)</option>
       </select>
     </div>
     <div class="grid2">
@@ -289,18 +289,18 @@
     entries: [],           // {id, date:'YYYY-MM-DD', start:'HH:MM', end:'HH:MM'|null, pause:min, note}
     running: null,         // {id, pauseStart: ms|null}
     absences: {},          // {'YYYY-MM-DD': {type, note}}
-    settings: { weekly: 40, workdays: [1,2,3,4,5], autoPause: true, startBalance: 0, state: '', vacationDays: 30 }
+    settings: { weekly: 40, workdays: [1,2,3,4,5], autoPause: true, startBalance: 0, state: 'AT', vacationDays: 25 }
   });
   const ABS = {
     urlaub:      { label: 'Urlaub', factor: 0, days: 1 },
     urlaub_halb: { label: 'Urlaub (halber Tag)', factor: 0.5, days: 0.5 },
-    krank:       { label: 'Krank', factor: 0, days: 0 },
+    krank:       { label: 'Krankenstand', factor: 0, days: 0 },
     feiertag:    { label: 'Feiertag / frei', factor: 0, days: 0 },
-    gleittag:    { label: 'Überstundenabbau', factor: 1, days: 0 },
+    gleittag:    { label: 'Zeitausgleich', factor: 1, days: 0 },
   };
-  const STATES = { '': 'Keins (nur bundesweite Feiertage)', BW: 'Baden-Württemberg', BY: 'Bayern', BE: 'Berlin', BB: 'Brandenburg', HB: 'Bremen',
-    HH: 'Hamburg', HE: 'Hessen', MV: 'Mecklenburg-Vorpommern', NI: 'Niedersachsen', NW: 'Nordrhein-Westfalen', RP: 'Rheinland-Pfalz',
-    SL: 'Saarland', SN: 'Sachsen', ST: 'Sachsen-Anhalt', SH: 'Schleswig-Holstein', TH: 'Thüringen', none: 'Keine Feiertage automatisch' };
+  const STATES = { AT: 'Österreich', '': 'Deutschland (nur bundesweite Feiertage)', BW: 'DE – Baden-Württemberg', BY: 'DE – Bayern', BE: 'DE – Berlin', BB: 'DE – Brandenburg', HB: 'DE – Bremen',
+    HH: 'DE – Hamburg', HE: 'DE – Hessen', MV: 'DE – Mecklenburg-Vorpommern', NI: 'DE – Niedersachsen', NW: 'DE – Nordrhein-Westfalen', RP: 'DE – Rheinland-Pfalz',
+    SL: 'DE – Saarland', SN: 'DE – Sachsen', ST: 'DE – Sachsen-Anhalt', SH: 'DE – Schleswig-Holstein', TH: 'DE – Thüringen', none: 'Keine Feiertage automatisch' };
   let state = load();
 
   function load() {
@@ -415,7 +415,15 @@
     const st = state.settings.state || '';
     const key = y + st; if (holidayCache[key]) return holidayCache[key];
     const out = {};
-    if (st !== 'none') {
+    if (st === 'AT') {
+      // Österreich: gesetzliche Feiertage nach Feiertagsruhegesetz
+      const E = easter(y); const fix = (m, d) => new Date(y, m - 1, d);
+      [[fix(1, 1), 'Neujahr'], [fix(1, 6), 'Heilige Drei Könige'], [addDays(E, 1), 'Ostermontag'], [fix(5, 1), 'Staatsfeiertag'],
+       [addDays(E, 39), 'Christi Himmelfahrt'], [addDays(E, 50), 'Pfingstmontag'], [addDays(E, 60), 'Fronleichnam'],
+       [fix(8, 15), 'Mariä Himmelfahrt'], [fix(10, 26), 'Nationalfeiertag'], [fix(11, 1), 'Allerheiligen'],
+       [fix(12, 8), 'Mariä Empfängnis'], [fix(12, 25), 'Christtag'], [fix(12, 26), 'Stefanitag']]
+        .forEach(([d, n]) => { out[ymd(d)] = n; });
+    } else if (st !== 'none') {
       const E = easter(y);
       const add = (d, name, states) => { if (!states || states.includes(st)) out[ymd(d)] = name; };
       const fix = (m, d) => new Date(y, m - 1, d);
@@ -622,7 +630,7 @@
     const vac = vacationDays(prefix);
     const sick = Object.entries(state.absences).filter(([d, a]) => d.startsWith(prefix) && a.type === 'krank' && isWorkday(d) && !holidayName(d)).length;
     $('#monthTable').innerHTML = (rows.join('') || '<tr><td colspan="4" class="empty">Keine Einträge in diesem Monat</td></tr>')
-      + (vac || sick ? `<tr><td colspan="4" class="muted">${vac ? `Urlaub: ${String(vac).replace('.', ',')} Tag(e)` : ''}${vac && sick ? ' · ' : ''}${sick ? `Krank: ${sick} Tag(e)` : ''}</td></tr>` : '');
+      + (vac || sick ? `<tr><td colspan="4" class="muted">${vac ? `Urlaub: ${String(vac).replace('.', ',')} Tag(e)` : ''}${vac && sick ? ' · ' : ''}${sick ? `Krankenstand: ${sick} Tag(e)` : ''}</td></tr>` : '');
   }
   function renderSettings() {
     const s = state.settings;
@@ -645,7 +653,7 @@
       <button style="margin-top:10px;width:100%" data-absence-new>Urlaub / Abwesenheit eintragen</button>`;
     const hs = Object.entries(holidays(y)).concat(Object.entries(holidays(y + 1))).filter(([d]) => d >= ymd(now())).slice(0, 6);
     $('#holidayList').innerHTML = s.state === 'none' ? '<p class="muted">Automatische Feiertage sind ausgeschaltet.</p>'
-      : `<p class="muted" style="margin:0 0 6px">Nächste Feiertage${s.state ? '' : ' (nur bundesweite – wähle oben dein Bundesland)'}:</p>` +
+      : `<p class="muted" style="margin:0 0 6px">Nächste Feiertage${s.state ? '' : ' (nur bundesweite deutsche – wähle oben dein Land)'}:</p>` +
         hs.map(([d, nm]) => `<div class="row spread" style="padding:4px 0"><span>${esc(nm)}</span><span class="muted">${fmtDate(d)}${d.slice(0, 4)}</span></div>`).join('');
   }
 
