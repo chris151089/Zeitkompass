@@ -252,11 +252,16 @@
         <button class="grow" id="exportCsv">Alles als CSV</button>
         <button class="grow" id="exportJson">Backup speichern</button>
       </div>
-      <div class="row">
+      <div class="row" style="margin-bottom:10px">
         <button class="grow" id="importBtn">Backup laden</button>
+        <button class="grow" id="xmlBtn">Monatsjournal (XML)</button>
+      </div>
+      <div class="row">
         <button class="grow danger" id="resetBtn">Alles löschen</button>
       </div>
+      <p class="muted" style="margin:10px 0 0">Monatsjournal: XML-Export aus der Zeiterfassung deines Arbeitgebers (PZE). Die Tage dieses Monats werden durch die offiziellen Daten ersetzt, alles andere bleibt.</p>
       <input type="file" id="importFile" accept="application/json,.json" hidden>
+      <input type="file" id="xmlFile" accept=".xml,text/xml,application/xml" hidden>
     </div>
   </section>
 </main>
@@ -543,13 +548,13 @@
     }
     return { worked, target, diff: worked - target, days };
   }
-  function balance() {
+  function balance(upto) {
     const dates = state.entries.map((e) => e.date).concat(Object.keys(state.absences)).sort();
     if (!dates.length) return state.settings.startBalance || 0;
     const bf = state.settings.balanceFrom; const first = bf && bf > dates[0] ? bf : dates[0];
-    const today = new Date(); const todayStr = ymd(today);
+    const todayStr = ymd(new Date()); const last = upto && upto < todayStr ? upto : todayStr;
     let sum = state.settings.startBalance || 0;
-    for (let d = parseYmd(first); ymd(d) <= todayStr; d = addDays(d, 1)) {
+    for (let d = parseYmd(first); ymd(d) <= last; d = addDays(d, 1)) {
       const k = ymd(d); const st = dayStats(k);
       // today is still in progress: count overtime already earned, but no deficit yet
       if (k === todayStr) { sum += Math.max(0, st.net - st.target); continue; }
@@ -933,6 +938,82 @@
       save(); render(); toast('Backup geladen');
     } catch (e) { toast('Datei ist kein gültiges Backup'); }
     ev.target.value = '';
+  });
+  // ---------- import: employer monthly journal (PZE XML) ----------
+  function parsePze(text) {
+    const doc = new DOMParser().parseFromString(text.replace(/^\uFEFF/, ''), 'application/xml');
+    if (doc.querySelector('parsererror')) throw new Error('xml');
+    const days = [...doc.getElementsByTagName('DataItem')].filter((el) => el.getAttribute('name') === 'Date');
+    if (!days.length) throw new Error('format');
+    const cols = (el) => {
+      const o = {}; const c = [...el.children].find((x) => x.tagName === 'Columns');
+      if (c) [...c.children].forEach((x) => { o[x.getAttribute('name')] = (x.textContent || '').trim(); });
+      return o;
+    };
+    const toIso = (s) => { const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s || ''); return m ? `${m[3]}-${m[2]}-${m[1]}` : null; };
+    const num = (s) => Number(String(s || '').replace(/\./g, '').replace(',', '.')) || 0;
+    const out = { days: [] };
+    days.forEach((di) => {
+      const d = cols(di); const date = toIso(d.Date__Period_Start_); if (!date) return;
+      const segs = [[d.Tagesabschnitt_Beginn, d.Tagesabschnitt_Ende, d.Tagesabschnitt_Erfassungscode, d.Tagesabschnitt__Kontierung_1_, d.Tagesabschnitt_Stunden]];
+      const sub = [...di.getElementsByTagName('DataItem')].filter((x) => x.getAttribute('name') === 'Tagesabschnitte');
+      sub.forEach((t) => { const e = cols(t); segs.push([e.Tagesabschnitt_Beginn2, e.Tagesabschnitt_Ende2, e.Tagesabschnitt_Erfassungscode2, e.Tagesabschnitt__Kontierung_1_2, e.PZEVerw_ReportStundenFormat_Tagesabschnitt_Stunden__PZEEinr2]); });
+      const seen = new Set(); const list = [];
+      segs.forEach(([b, e, code, kont, h]) => {
+        if (!code) return; const key = [b, e, code].join('|'); if (seen.has(key)) return; seen.add(key);
+        list.push({ start: b, end: e, code: code.toUpperCase(), cc: kont || '', hours: num(h) });
+      });
+      out.days.push({ date, list });
+      // monthly summary columns are repeated on every day row
+      const titles = Array.from({ length: 12 }, (_, i) => d[`Kontotitel_${i + 1}`]);
+      const zi = titles.indexOf('ZA SALDO') + 1;
+      if (zi) { out.vorsaldo = num(d[`VorsaldoOhneAuszahlung_${zi}`]); out.endsaldo = num(d.EndSumme || d[`SummeNettoLfdMonat_${zi}`]); }
+      if (d.Anspruchstage) out.vacation = num(d.Anspruchstage);
+    });
+    return out;
+  }
+  function applyPze(data, useCc) {
+    let work = 0, abs = 0;
+    const runId = state.running && state.running.id;
+    data.days.forEach(({ date, list }) => {
+      state.entries = state.entries.filter((e) => e.date !== date || e.id === runId);
+      delete state.absences[date];
+      list.forEach((x) => {
+        if (/^FT/.test(x.code)) return;                                   // public holiday: app knows it
+        if (/^URL/.test(x.code)) { state.absences[date] = { type: x.hours && x.hours < 5 ? 'urlaub_halb' : 'urlaub', note: 'PZE' }; abs++; return; }
+        if (/^ZA/.test(x.code)) { state.absences[date] = { type: 'gleittag', note: 'PZE' }; abs++; return; }
+        if (/^KR/.test(x.code)) { state.absences[date] = { type: 'krank', note: 'PZE' }; abs++; return; }
+        if (!x.start || !x.end || x.start === x.end) return;              // zero-length auto bookings
+        const cc = useCc ? x.cc : '';
+        state.entries.push({ id: uid(), date, start: x.start, end: x.end, pause: 0, note: x.code === 'ANW' ? '' : x.code, cc });
+        if (cc) touchCc(cc);
+        work++;
+      });
+    });
+    return { work, abs };
+  }
+  const fmtH = (h) => (h > 0 ? '+' : h < 0 ? '−' : '') + Math.abs(h).toFixed(2).replace('.', ',');
+  $('#xmlBtn').addEventListener('click', () => $('#xmlFile').click());
+  $('#xmlFile').addEventListener('change', async (ev) => {
+    const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+    let data;
+    try { data = parsePze(await f.text()); } catch (e) { toast('Datei ist kein lesbares Monatsjournal'); return; }
+    const from = data.days[0].date, to = data.days[data.days.length - 1].date;
+    const label = `${fmtDate(from)}${from.slice(0, 4)} – ${fmtDate(to)}${to.slice(0, 4)}`;
+    if (!confirm(`Monatsjournal ${label} importieren?\nDie Einträge dieser Tage werden durch die Daten deines Arbeitgebers ersetzt.`)) return;
+    const ccs = new Set(data.days.flatMap((d) => d.list.map((x) => x.cc)).filter(Boolean));
+    const useCc = ccs.size > 0 && confirm(`Kontierung (${[...ccs].join(', ')}) als Kostenstelle übernehmen?`);
+    const r = applyPze(data, useCc);
+    const bf = state.settings.balanceFrom;
+    if (data.vorsaldo !== undefined && (!bf || from <= bf || !state.entries.some((e) => e.date < from))) {
+      if (confirm(`ZA-Saldo laut Arbeitgeber vor diesem Monat: ${fmtH(data.vorsaldo)} Std.\nAls Übertrag übernehmen und das Überstundenkonto ab ${fmtDate(from)}${from.slice(0, 4)} rechnen?`)) {
+        state.settings.startBalance = Math.round(data.vorsaldo * 60); state.settings.balanceFrom = from;
+      }
+    }
+    save(); render();
+    let msg = `${r.work} Zeitabschnitte und ${r.abs} Abwesenheiten importiert.`;
+    if (data.endsaldo !== undefined) msg += `\n\nZA-Saldo laut Arbeitgeber am ${fmtDate(to)}: ${fmtH(data.endsaldo)}\nZeitkompass am selben Tag: ${fmtDur(balance(to), true)}`;
+    alert(msg);
   });
   $('#resetBtn').addEventListener('click', () => {
     if (!confirm('Wirklich ALLE Einträge und Einstellungen löschen?')) return;

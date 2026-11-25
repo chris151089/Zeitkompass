@@ -17,6 +17,7 @@ Einfache Zeiterfassung für die Arbeit – eine einzige HTML-Datei, läuft im Br
 - **Regelmäßiger Zeitausgleich** (jeder 2. Freitag frei)
 - Optional **gesetzliche Mindestpause** (30 Min. ab 6 Std., AZG/ArbZG) wird automatisch abgezogen, wenn zu wenig Pause erfasst wurde
 - **Kostenstellen**: während der Arbeit mit einem Tipp wechseln oder neu anlegen, Auswertung pro Monat
+- **Monatsjournal-Import (XML)** aus der Personalzeiterfassung (PZE) des Arbeitgebers
 - **Backup** als JSON speichern und wieder laden
 
 ## Benutzung
