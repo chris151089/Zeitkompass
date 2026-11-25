@@ -225,6 +225,11 @@
         </select>
       </div>
       <div class="field">
+        <label for="setBalanceFrom">Überstunden zählen ab (optional)</label>
+        <input id="setBalanceFrom" type="date">
+        <p class="muted" style="margin:6px 0 0">Tage davor bleiben sichtbar, zählen aber nicht ins Überstundenkonto. Den Stand an diesem Tag trägst du unten als Übertrag ein.</p>
+      </div>
+      <div class="field">
         <label for="setStartBalance">Übertrag Überstunden in Stunden (z. B. 5,5 oder -2)</label>
         <input id="setStartBalance" type="text" inputmode="decimal" placeholder="0,00">
       </div>
@@ -317,7 +322,7 @@
     absences: {},          // {'YYYY-MM-DD': {type, note}}
     costCenters: [],       // names, most recently used first
     currentCc: '',         // cost center for the next clock-in
-    settings: { weekly: 40, workdays: [1,2,3,4,5], autoPause: true, startBalance: 0, state: 'AT', vacationDays: 25, plan: {}, zaStart: '' }
+    settings: { weekly: 40, workdays: [1,2,3,4,5], autoPause: true, startBalance: 0, state: 'AT', vacationDays: 25, plan: {}, zaStart: '', balanceFrom: '' }
   });
   const ABS = {
     urlaub:      { label: 'Urlaub', factor: 0, days: 1 },
@@ -515,7 +520,8 @@
     const dates = state.entries.map((e) => e.date).concat(Object.keys(state.absences)).sort();
     if (!dates.length) return 0;
     const todayStr = ymd(now()); let sum = 0;
-    for (let d = parseYmd(dates[0]); ymd(d) < todayStr; d = addDays(d, 1)) {
+    const bf = state.settings.balanceFrom; const first = bf && bf > dates[0] ? bf : dates[0];
+    for (let d = parseYmd(first); ymd(d) < todayStr; d = addDays(d, 1)) {
       const k = ymd(d); const base = baseTarget(k); const plan = planFor(k);
       if (!base || plan === null || holidayName(k)) continue;
       const a = absenceFor(k);
@@ -540,7 +546,7 @@
   function balance() {
     const dates = state.entries.map((e) => e.date).concat(Object.keys(state.absences)).sort();
     if (!dates.length) return state.settings.startBalance || 0;
-    const first = dates[0];
+    const bf = state.settings.balanceFrom; const first = bf && bf > dates[0] ? bf : dates[0];
     const today = new Date(); const todayStr = ymd(today);
     let sum = state.settings.startBalance || 0;
     for (let d = parseYmd(first); ymd(d) <= todayStr; d = addDays(d, 1)) {
@@ -772,6 +778,7 @@
     $('#setState').innerHTML = Object.entries(STATES).map(([k, v]) => `<option value="${k}" ${k === (s.state || '') ? 'selected' : ''}>${v}</option>`).join('');
     $('#setVacation').value = s.vacationDays;
     $('#setZa').value = s.zaStart || '';
+    $('#setBalanceFrom').value = s.balanceFrom || '';
     $('#ccList').innerHTML = state.costCenters.length
       ? state.costCenters.map((c) => `<div class="row spread" style="padding:4px 0"><span>${esc(c)}</span><button class="icon danger" data-cc-del="${esc(c)}" aria-label="Entfernen">✕</button></div>`).join('')
       : '<p class="muted" style="margin:0">Noch keine Kostenstellen. Du kannst sie auch direkt auf „Heute“ anlegen.</p>';
@@ -936,6 +943,7 @@
   $('#setWeekly').addEventListener('change', (e) => { state.settings.weekly = Math.max(0, Number(e.target.value) || 0); save(); renderSettings(); });
   $('#setState').addEventListener('change', (e) => { state.settings.state = e.target.value; save(); renderSettings(); });
   $('#setVacation').addEventListener('change', (e) => { state.settings.vacationDays = Math.max(0, Number(String(e.target.value).replace(',', '.')) || 0); save(); renderSettings(); });
+  $('#setBalanceFrom').addEventListener('change', (e) => { state.settings.balanceFrom = e.target.value; save(); render(); });
   $('#setZa').addEventListener('change', (e) => {
     const v = e.target.value;
     if (v && parseYmd(v).getDay() !== 5 && !confirm('Das Datum ist kein Freitag. Trotzdem alle 2 Wochen ab diesem Tag?')) { renderSettings(); return; }
