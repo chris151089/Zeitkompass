@@ -241,6 +241,17 @@
       <p class="muted" id="dailyTargetInfo"></p>
     </div>
     <div class="card">
+      <h2>Korrekturen &amp; Auszahlungen</h2>
+      <p class="muted" style="margin-top:0">Buchungen aufs Überstundenkonto, die keinem Arbeitstag gehören – z. B. ausbezahlte Stunden oder ein Pauschalabzug. Minus = Konto wird kleiner.</p>
+      <div id="adjList"></div>
+      <div class="grid2" style="margin-top:10px">
+        <div class="field"><label for="adjDate">Datum</label><input id="adjDate" type="date"></div>
+        <div class="field"><label for="adjHours">Stunden (z. B. -10 oder 2,5)</label><input id="adjHours" type="text" inputmode="decimal" placeholder="-10,00"></div>
+      </div>
+      <div class="field"><label for="adjNote">Grund</label><input id="adjNote" type="text" maxlength="80" placeholder="z. B. Auszahlung"></div>
+      <button style="width:100%" id="adjAdd">+ Korrektur buchen</button>
+    </div>
+    <div class="card">
       <h2>Kostenstellen</h2>
       <div id="ccList"></div>
       <button style="margin-top:10px;width:100%" data-cc-new>+ Neue Kostenstelle</button>
@@ -347,6 +358,7 @@
     running: null,         // {id, pauseStart: ms|null}
     absences: {},          // {'YYYY-MM-DD': {type, note}}
     costCenters: [],       // names, most recently used first
+    adjustments: [],       // balance corrections: {id, date, min, note} (payouts, lump-sum deductions …)
     currentCc: '',         // cost center for the next clock-in
     settings: { weekly: 40, workdays: [1,2,3,4,5], autoPause: true, startBalance: 0, backupEvery: 1, state: 'AT', vacationDays: 25, plan: {}, zaStart: '', balanceFrom: '' }
   });
@@ -387,7 +399,7 @@
       if (!raw) return defaults();
       const d = JSON.parse(raw);
       const base = defaults();
-      return foldPauseEntries({ ...base, ...d, absences: d.absences || {}, costCenters: d.costCenters || [], settings: { ...base.settings, ...(d.settings || {}) } });
+      return foldPauseEntries({ ...base, ...d, absences: d.absences || {}, costCenters: d.costCenters || [], adjustments: d.adjustments || [], settings: { ...base.settings, ...(d.settings || {}) } });
     } catch (e) { return defaults(); }
   }
   function save() {
@@ -590,11 +602,12 @@
     return { worked, target, diff: worked - target, days };
   }
   function balance(upto) {
-    const dates = state.entries.map((e) => e.date).concat(Object.keys(state.absences)).sort();
+    const dates = state.entries.map((e) => e.date).concat(Object.keys(state.absences), (state.adjustments || []).map((a) => a.date)).sort();
     if (!dates.length) return state.settings.startBalance || 0;
     const bf = state.settings.balanceFrom; const first = bf && bf > dates[0] ? bf : dates[0];
     const todayStr = ymd(new Date()); const last = upto && upto < todayStr ? upto : todayStr;
     let sum = state.settings.startBalance || 0;
+    (state.adjustments || []).forEach((a) => { if (a.date >= first && a.date <= last) sum += Number(a.min) || 0; });
     for (let d = parseYmd(first); ymd(d) <= last; d = addDays(d, 1)) {
       const k = ymd(d); const st = dayStats(k);
       // today is still in progress: count overtime already earned, but no deficit yet
@@ -804,6 +817,8 @@
     });
     const prefix = `${first.getFullYear()}-${pad(first.getMonth() + 1)}`;
     renderMonthCc(prefix);
+    const madj = (state.adjustments || []).filter((a) => a.date.startsWith(prefix));
+    if (madj.length) rows.push(...madj.map((a) => `<tr><td>${fmtDate(a.date)}</td><td><i>${esc(a.note || 'Korrektur')}</i></td><td></td><td class="r"><b class="${a.min < 0 ? 'neg' : 'pos'}">${fmtDur(a.min, true)}</b></td></tr>`));
     const vac = vacationDays(prefix);
     const sick = Object.entries(state.absences).filter(([d, a]) => d.startsWith(prefix) && a.type === 'krank' && isWorkday(d) && !holidayName(d)).length;
     $('#monthTable').innerHTML = (rows.join('') || '<tr><td colspan="4" class="empty">Keine Einträge in diesem Monat</td></tr>')
@@ -833,6 +848,13 @@
     $('#setState').innerHTML = Object.entries(STATES).map(([k, v]) => `<option value="${k}" ${k === (s.state || '') ? 'selected' : ''}>${v}</option>`).join('');
     $('#setVacation').value = s.vacationDays;
     $('#setZa').value = s.zaStart || '';
+    if (!$('#adjDate').value) $('#adjDate').value = ymd(now());
+    const adj = (state.adjustments || []).slice().sort((a, b) => b.date.localeCompare(a.date));
+    $('#adjList').innerHTML = adj.length ? adj.map((a) => `<div class="row spread" style="padding:4px 0">
+        <span class="grow">${fmtDate(a.date)}${a.date.slice(0, 4)} · ${esc(a.note || 'Korrektur')}</span>
+        <b class="${a.min < 0 ? 'neg' : 'pos'}">${fmtDur(a.min, true)}</b>
+        <button class="icon danger" data-adj-del="${esc(a.id)}" aria-label="Korrektur löschen">✕</button></div>`).join('')
+      : '<p class="muted" style="margin:0">Keine Korrekturen.</p>';
     $('#setBalanceFrom').value = s.balanceFrom || '';
     $('#ccList').innerHTML = state.costCenters.length
       ? state.costCenters.map((c) => `<div class="row spread" style="padding:4px 0"><span>${esc(c)}</span><button class="icon danger" data-cc-del="${esc(c)}" aria-label="Entfernen">✕</button></div>`).join('')
@@ -1054,7 +1076,7 @@
       if (!confirm(`Backup ${when}laden?\n${d.entries.length} Einträge${lastDay ? `, letzter am ${fmtDate(lastDay)}${lastDay.slice(0, 4)}` : ''}.\n\nDie aktuellen Daten in der App werden ersetzt.`)) return;
       delete d.savedAt;
       const base = defaults();
-      state = foldPauseEntries({ ...base, ...d, absences: d.absences || {}, costCenters: d.costCenters || [], settings: { ...base.settings, ...(d.settings || {}) } });
+      state = foldPauseEntries({ ...base, ...d, absences: d.absences || {}, costCenters: d.costCenters || [], adjustments: d.adjustments || [], settings: { ...base.settings, ...(d.settings || {}) } });
       save(); render(); toast('Backup geladen');
     } catch (e) { toast('Datei ist kein gültiges Backup'); }
     ev.target.value = '';
@@ -1089,7 +1111,10 @@
       const zi = titles.indexOf('ZA SALDO') + 1;
       if (zi) {
         // summary columns are per period (month); a file can hold several months
-        const per = (out.periods = out.periods || {})[date.slice(0, 7)] = { last: date, vorsaldo: num(d[`VorsaldoOhneAuszahlung_${zi}`]), endsaldo: num(d.EndSumme || d[`SummeNettoLfdMonat_${zi}`]) };
+        const per = (out.periods = out.periods || {})[date.slice(0, 7)] = { last: date, vorsaldo: num(d[`VorsaldoOhneAuszahlung_${zi}`]), endsaldo: num(d.EndSumme || d[`SummeNettoLfdMonat_${zi}`]),
+          // bookings on the account that belong to no single day
+          bookings: [['UmbuchungLfdMonat', 'Umbuchung'], ['PauschalAbzugLfdMonat', 'Pauschalabzug'], ['AuszahlungStunden', 'Auszahlung'], ['ZAAbzugLfdMonat', 'ZA-Abzug'], ['ZuschlagLfdMonat', 'Zuschlag']]
+            .map(([col, label]) => ({ label, h: num(d[`${col}_${zi}`]) })).filter((b) => b.h) };
         if (out.vorsaldo === undefined) out.vorsaldo = per.vorsaldo;
       }
       if (d.Anspruchstage) out.vacation = num(d.Anspruchstage);
@@ -1115,7 +1140,15 @@
       });
     });
     foldPauseEntries(state);                                                // PAUSE blocks → breaks
-    return { work, abs };
+    let adj = 0;
+    Object.entries(data.periods || {}).forEach(([k, per]) => {
+      state.adjustments = (state.adjustments || []).filter((a) => !String(a.id).startsWith(`pze-${k}-`));
+      (per.bookings || []).forEach((b) => {
+        const sign = b.label === 'Auszahlung' && b.h > 0 ? -1 : 1;           // paid-out hours leave the account
+        state.adjustments.push({ id: `pze-${k}-${b.label}`, date: per.last, min: Math.round(sign * b.h * 60), note: `${b.label} (PZE)` }); adj++;
+      });
+    });
+    return { work, abs, adj };
   }
   const fmtH = (h) => (h > 0 ? '+' : h < 0 ? '−' : '') + Math.abs(h).toFixed(2).replace('.', ',');
   $('#xmlBtn').addEventListener('click', () => $('#xmlFile').click());
@@ -1143,7 +1176,7 @@
       }
     }
     save(); render();
-    let msg = `${r.work} Zeitabschnitte und ${r.abs} Abwesenheiten importiert.`;
+    let msg = `${r.work} Zeitabschnitte und ${r.abs} Abwesenheiten importiert${r.adj ? `, ${r.adj} Korrekturbuchung(en) (z. B. Pauschalabzug)` : ''}.`;
     if (months.length) {
       msg += '\n\nZA-Saldo am Monatsende – Arbeitgeber / Zeitkompass:';
       months.forEach((k) => { const p = data.periods[k]; msg += `\n${mName(k)}: ${fmtH(p.endsaldo)} / ${fmtDur(balance(p.last), true)}`; });
@@ -1162,6 +1195,14 @@
   $('#setWeekly').addEventListener('change', (e) => { state.settings.weekly = Math.max(0, Number(e.target.value) || 0); save(); renderSettings(); });
   $('#setState').addEventListener('change', (e) => { state.settings.state = e.target.value; save(); renderSettings(); });
   $('#setVacation').addEventListener('change', (e) => { state.settings.vacationDays = Math.max(0, Number(String(e.target.value).replace(',', '.')) || 0); save(); renderSettings(); });
+  $('#adjAdd').addEventListener('click', () => {
+    const date = $('#adjDate').value; const min = parseDur($('#adjHours').value);
+    if (!date || !min) { toast('Bitte Datum und Stunden eingeben'); return; }
+    state.adjustments = state.adjustments || [];
+    state.adjustments.push({ id: uid(), date, min, note: $('#adjNote').value.trim().slice(0, 80) });
+    $('#adjHours').value = ''; $('#adjNote').value = '';
+    save(); render(); toast('Korrektur gebucht');
+  });
   $('#setBalanceFrom').addEventListener('change', (e) => { state.settings.balanceFrom = e.target.value; save(); render(); });
   $('#setZa').addEventListener('change', (e) => {
     const v = e.target.value;
@@ -1193,6 +1234,9 @@
     else if (t.dataset.edit) openEdit(t.dataset.edit);
     else if (t.hasAttribute('data-cc-new')) newCc();
     else if (t.hasAttribute('data-cc')) switchCc(t.dataset.cc);
+    else if (t.dataset.adjDel) {
+      if (confirm('Diese Korrektur löschen?')) { state.adjustments = (state.adjustments || []).filter((a) => a.id !== t.dataset.adjDel); save(); render(); }
+    }
     else if (t.dataset.ccDel) {
       if (confirm(`Kostenstelle „${t.dataset.ccDel}“ aus der Liste entfernen? Bisherige Einträge behalten sie.`)) {
         state.costCenters = state.costCenters.filter((c) => c !== t.dataset.ccDel);
