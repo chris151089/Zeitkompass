@@ -947,9 +947,12 @@
   const getLastBackup = () => { try { return localStorage.getItem(LB_KEY) || ''; } catch (e) { return ''; } };
   const setLastBackup = () => { try { localStorage.setItem(LB_KEY, new Date().toISOString()); } catch (e) {} };
   function daysSinceBackup() { const l = getLastBackup(); return l ? Math.floor((Date.now() - new Date(l)) / 86400000) : null; }
+  // backup content carries its own timestamp; the file name is unique (iOS never overwrites, it numbers duplicates)
+  const backupJson = () => JSON.stringify({ ...state, savedAt: new Date().toISOString() }, null, 2);
+  const backupName = () => { const n = new Date(); return `Zeitkompass ${ymd(n)} ${pad(n.getHours())}${pad(n.getMinutes())}.json`; };
   async function backupToCloud() {
-    const json = JSON.stringify(state, null, 2);
-    const file = new File([json], 'Zeitkompass-Backup.json', { type: 'application/json' });
+    const json = backupJson();
+    const file = new File([json], backupName(), { type: 'application/json' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file], title: 'Zeitkompass-Backup' }); }
       catch (e) { if (e && e.name === 'AbortError') return; toast('Teilen nicht möglich – Datei wird heruntergeladen'); download(file.name, json, 'application/json'); }
@@ -971,7 +974,7 @@
   }
   $('#cloudBackup').addEventListener('click', backupToCloud);
   $('#setBackupEvery').addEventListener('change', (e) => { state.settings.backupEvery = Number(e.target.value); save(); render(); });
-  $('#exportJson').addEventListener('click', () => { download(`zeitkompass-backup-${ymd(now())}.json`, JSON.stringify(state, null, 2), 'application/json'); setLastBackup(); render(); });
+  $('#exportJson').addEventListener('click', () => { download(backupName(), backupJson(), 'application/json'); setLastBackup(); render(); });
   $('#importBtn').addEventListener('click', () => $('#importFile').click());
   $('#importFile').addEventListener('change', async (ev) => {
     const f = ev.target.files[0]; if (!f) return;
@@ -979,7 +982,10 @@
     try {
       const d = JSON.parse(await f.text());
       if (!Array.isArray(d.entries)) throw new Error('format');
-      if (!confirm(`Backup mit ${d.entries.length} Einträgen laden? Aktuelle Daten werden ersetzt.`)) return;
+      const lastDay = d.entries.map((e) => e.date).sort().pop();
+      const when = d.savedAt ? `vom ${fmtDate(ymd(new Date(d.savedAt)))}${new Date(d.savedAt).getFullYear()}, ${hm(new Date(d.savedAt))} Uhr ` : '';
+      if (!confirm(`Backup ${when}laden?\n${d.entries.length} Einträge${lastDay ? `, letzter am ${fmtDate(lastDay)}${lastDay.slice(0, 4)}` : ''}.\n\nDie aktuellen Daten in der App werden ersetzt.`)) return;
+      delete d.savedAt;
       const base = defaults();
       state = { ...base, ...d, absences: d.absences || {}, costCenters: d.costCenters || [], settings: { ...base.settings, ...(d.settings || {}) } };
       save(); render(); toast('Backup geladen');
