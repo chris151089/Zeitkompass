@@ -16,6 +16,7 @@ Einfache Zeiterfassung für die Arbeit – eine einzige HTML-Datei, läuft im Br
 - **Dienstplan** pro Wochentag (z. B. Mo–Do 9,25, Fr 6) mit Aufteilung in Einarbeitszeit und Mehrarbeit
 - **Regelmäßiger Zeitausgleich** (jeder 2. Freitag frei)
 - Optional **gesetzliche Mindestpause** (30 Min. ab 6 Std., AZG/ArbZG) wird automatisch abgezogen, wenn zu wenig Pause erfasst wurde
+- **Kostenstellen**: während der Arbeit mit einem Tipp wechseln oder neu anlegen, Auswertung pro Monat
 - **Backup** als JSON speichern und wieder laden
 
 ## Benutzung

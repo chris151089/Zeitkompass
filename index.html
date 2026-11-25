@@ -98,6 +98,12 @@
   .absence { display:flex; align-items:center; gap:10px; padding:8px 10px; margin-top:8px; border-radius:10px; background: var(--accent-soft); }
   .absence.holiday { background: var(--warn-soft); }
   .absence .grow { font-weight:600; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .chip { min-height: 40px; padding: 8px 14px; border-radius: 999px; font-size: .95rem; }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { .chip.on { color: #04201d; } }
+  .chip.add { border-style: dashed; color: var(--muted); }
+  .cc { display: inline-block; font-size: .78rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); margin-left: 6px; vertical-align: middle; }
   .empty { text-align: center; color: var(--muted); padding: 12px 0; }
   @media print {
     nav.tabs, .toast, button { display: none !important; }
@@ -120,6 +126,7 @@
       <div class="clock" id="clock">0:00:00</div>
       <div class="muted" style="text-align:center;margin-bottom:16px" id="clockSub"></div>
       <div id="actions"></div>
+      <div id="ccBox"></div>
     </div>
     <div class="card">
       <div class="stats">
@@ -172,6 +179,7 @@
         <thead><tr><th>Tag</th><th>Zeiten</th><th class="r">Pause</th><th class="r">Ist</th></tr></thead>
         <tbody id="monthTable"></tbody>
       </table>
+      <div id="monthCc"></div>
       <div class="row" style="margin-top:14px">
         <button class="grow" id="monthCsv">Monat als CSV</button>
         <button class="grow" id="monthPrint">Drucken / PDF</button>
@@ -221,6 +229,11 @@
         <input id="setStartBalance" type="text" inputmode="decimal" placeholder="0,00">
       </div>
       <p class="muted" id="dailyTargetInfo"></p>
+    </div>
+    <div class="card">
+      <h2>Kostenstellen</h2>
+      <div id="ccList"></div>
+      <button style="margin-top:10px;width:100%" data-cc-new>+ Neue Kostenstelle</button>
     </div>
     <div class="card">
       <h2>Urlaub &amp; Feiertage</h2>
@@ -273,6 +286,7 @@
       <div class="field"><label for="fEnd">Ende</label><input id="fEnd" type="time"></div>
     </div>
     <div class="field"><label for="fPause">Pause (Minuten)</label><input id="fPause" type="number" min="0" step="1" inputmode="numeric"></div>
+    <div class="field"><label for="fCc">Kostenstelle</label><input id="fCc" type="text" maxlength="80" list="ccOptions" placeholder="optional"><datalist id="ccOptions"></datalist></div>
     </div>
     <div class="field"><label for="fNote">Notiz / Projekt</label><input id="fNote" type="text" maxlength="200" placeholder="optional"></div>
     <p class="muted" id="fHint"></p>
@@ -301,6 +315,8 @@
     entries: [],           // {id, date:'YYYY-MM-DD', start:'HH:MM', end:'HH:MM'|null, pause:min, note}
     running: null,         // {id, pauseStart: ms|null}
     absences: {},          // {'YYYY-MM-DD': {type, note}}
+    costCenters: [],       // names, most recently used first
+    currentCc: '',         // cost center for the next clock-in
     settings: { weekly: 40, workdays: [1,2,3,4,5], autoPause: true, startBalance: 0, state: 'AT', vacationDays: 25, plan: {}, zaStart: '' }
   });
   const ABS = {
@@ -321,7 +337,7 @@
       if (!raw) return defaults();
       const d = JSON.parse(raw);
       const base = defaults();
-      return { ...base, ...d, absences: d.absences || {}, settings: { ...base.settings, ...(d.settings || {}) } };
+      return { ...base, ...d, absences: d.absences || {}, costCenters: d.costCenters || [], settings: { ...base.settings, ...(d.settings || {}) } };
     } catch (e) { return defaults(); }
   }
   function save() {
@@ -331,6 +347,8 @@
 
   // ---------- helpers ----------
   const $ = (s) => document.querySelector(s);
+  // only touch the DOM when content changed (keeps buttons tappable during the 1-second refresh)
+  const setHtml = (sel, html) => { const el = $(sel); if (el._html !== html) { el.innerHTML = html; el._html = html; } };
   const pad = (n) => String(n).padStart(2, '0');
   const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const parseYmd = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
@@ -538,9 +556,56 @@
   function runningEntry() { return state.running ? state.entries.find((e) => e.id === state.running.id) : null; }
   function clockIn() {
     const n = now();
-    const e = { id: uid(), date: ymd(n), start: hm(n), end: null, pause: 0, note: '' };
+    const e = { id: uid(), date: ymd(n), start: hm(n), end: null, pause: 0, note: '', cc: state.currentCc || '' };
     state.entries.push(e); state.running = { id: e.id, pauseStart: null };
-    save(); render(); toast(`Eingestempelt um ${e.start}`);
+    save(); render(); toast(`Eingestempelt um ${e.start}${e.cc ? ' · ' + e.cc : ''}`);
+  }
+  // ---------- cost centers ----------
+  function touchCc(name) {
+    if (!name) return;
+    state.costCenters = [name, ...state.costCenters.filter((c) => c !== name)];
+  }
+  // switch cost center: while working, close the current block now and start a new one
+  function switchCc(name) {
+    touchCc(name); state.currentCc = name;
+    const e = runningEntry();
+    if (!e) { save(); render(); toast(name ? `Kostenstelle für Kommen: ${name}` : 'Ohne Kostenstelle'); return; }
+    if ((e.cc || '') === name) { save(); render(); return; }
+    if (state.running.pauseStart) endPause(true);
+    const n = now(); const t = hm(n);
+    if (e.start === t && e.date === ymd(n)) {
+      e.cc = name;                       // started this very minute: just relabel
+      // switched straight back: merge with the block right before it
+      const prev = state.entries.find((x) => x.id !== e.id && x.date === e.date && x.end === e.start && (x.cc || '') === name);
+      if (prev && !e.pause) {
+        prev.end = null; state.entries = state.entries.filter((x) => x.id !== e.id);
+        state.running = { id: prev.id, pauseStart: null };
+      }
+    } else {
+      e.end = t;
+      const ne = { id: uid(), date: ymd(n), start: t, end: null, pause: 0, note: '', cc: name };
+      state.entries.push(ne); state.running = { id: ne.id, pauseStart: null };
+    }
+    save(); render(); toast(`Gewechselt auf ${name || 'ohne Kostenstelle'} um ${t}`);
+  }
+  function newCc() {
+    const name = (prompt('Name der neuen Kostenstelle:') || '').trim().slice(0, 80);
+    if (!name) return;
+    switchCc(name);
+  }
+  function renderCcBox() {
+    const e = runningEntry(); const cur = e ? (e.cc || '') : (state.currentCc || '');
+    if (!state.costCenters.length && !cur) {
+      setHtml('#ccBox', `<div class="chips"><button class="chip add" data-cc-new>+ Kostenstelle</button></div>`);
+      return;
+    }
+    const names = state.costCenters.slice(0, 12);
+    setHtml('#ccBox', `<div class="muted" style="margin-top:16px">${e ? 'Kostenstelle – antippen zum Wechseln:' : 'Kostenstelle fürs nächste Kommen:'}</div>
+      <div class="chips" style="margin-top:8px">
+        ${names.map((c) => `<button class="chip ${c === cur ? 'on' : ''}" data-cc="${esc(c)}">${esc(c)}</button>`).join('')}
+        <button class="chip ${cur === '' ? 'on' : ''}" data-cc="">ohne</button>
+        <button class="chip add" data-cc-new>+ Neu</button>
+      </div>`);
   }
   function clockOut() {
     const e = runningEntry(); if (!e) return;
@@ -578,7 +643,9 @@
       sub = `Seit ${e.start} Uhr${e.date !== todayStr ? ' (' + fmtDate(e.date) + ')' : ''}`;
       actions = '<div class="row"><button class="warn big grow" id="btnPause" style="width:auto">Pause</button><button class="primary big grow" id="btnOut" style="width:auto">Gehen</button></div>';
     }
-    $('#status').innerHTML = statusHtml; $('#clockSub').textContent = sub; $('#actions').innerHTML = actions;
+    if (e && e.cc && !r.pauseStart) sub = `${e.cc} · seit ${e.start} Uhr${e.date !== todayStr ? ' (' + fmtDate(e.date) + ')' : ''}`;
+    setHtml('#status', statusHtml); $('#clockSub').textContent = sub; setHtml('#actions', actions);
+    renderCcBox();
     renderClock();
 
     const mon = mondayOf(now());
@@ -593,9 +660,9 @@
       $('#balanceSplit').innerHTML = `davon Einarbeitszeit (Dienstplan) <b>${fmtDur(pre, true)}</b> · Mehrarbeit <b class="${extra > 0 ? 'pos' : extra < 0 ? 'neg' : ''}">${fmtDur(extra, true)}</b>`;
     } else $('#balanceSplit').innerHTML = '';
 
-    $('#todayList').innerHTML = absenceRow(st) + (st.list.length
+    setHtml('#todayList', absenceRow(st) + (st.list.length
       ? st.list.map(entryRow).join('') + autoNote(st)
-      : (st.holiday || st.absence ? '' : '<div class="empty">Noch keine Einträge</div>'));
+      : (st.holiday || st.absence ? '' : '<div class="empty">Noch keine Einträge</div>')));
   }
   function autoNote(st) {
     if (!st.autoAdded) return '';
@@ -616,7 +683,7 @@
     const dur = Math.max(0, spanMin(e) - recordedPause(e));
     return `<div class="entry">
       <div class="grow">
-        <div class="t">${e.start} – ${e.end || '<span class="pill" style="font-size:.75rem">läuft</span>'}</div>
+        <div class="t">${e.start} – ${e.end || '<span class="pill" style="font-size:.75rem">läuft</span>'}${e.cc ? `<span class="cc">${esc(e.cc)}</span>` : ''}</div>
         <div class="note">${e.pause || liveExtraPause(e) ? `Pause ${Math.round(recordedPause(e))} Min.` : ''}${e.note ? (e.pause ? ' · ' : '') + esc(e.note) : ''}</div>
       </div>
       <b style="font-variant-numeric:tabular-nums">${fmtDur(dur)}</b>
@@ -675,10 +742,23 @@
       return `<tr><td>${fmtDate(date)}</td><td>${times}</td><td class="r">${Math.round(st.pause + st.autoAdded)}′</td><td class="r"><b>${fmtDur(st.net)}</b></td></tr>`;
     });
     const prefix = `${first.getFullYear()}-${pad(first.getMonth() + 1)}`;
+    renderMonthCc(prefix);
     const vac = vacationDays(prefix);
     const sick = Object.entries(state.absences).filter(([d, a]) => d.startsWith(prefix) && a.type === 'krank' && isWorkday(d) && !holidayName(d)).length;
     $('#monthTable').innerHTML = (rows.join('') || '<tr><td colspan="4" class="empty">Keine Einträge in diesem Monat</td></tr>')
       + (vac || sick ? `<tr><td colspan="4" class="muted">${vac ? `Urlaub: ${String(vac).replace('.', ',')} Tag(e)` : ''}${vac && sick ? ' · ' : ''}${sick ? `Krankenstand: ${sick} Tag(e)` : ''}</td></tr>` : '');
+  }
+  function renderMonthCc(prefix) {
+    const sums = {};
+    state.entries.filter((e) => e.date.startsWith(prefix)).forEach((e) => {
+      const k = e.cc || '(ohne Kostenstelle)';
+      sums[k] = (sums[k] || 0) + Math.max(0, spanMin(e) - recordedPause(e));
+    });
+    const rows = Object.entries(sums).sort((a, b) => b[1] - a[1]);
+    if (!rows.length || (rows.length === 1 && rows[0][0] === '(ohne Kostenstelle)')) { $('#monthCc').innerHTML = ''; return; }
+    $('#monthCc').innerHTML = `<h2 style="margin:18px 0 8px">Nach Kostenstelle</h2><table><tbody>
+      ${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r"><b>${fmtDur(v)}</b></td></tr>`).join('')}</tbody></table>
+      <p class="muted" style="margin:6px 0 0">Ohne automatisch abgezogene Pausen.</p>`;
   }
   function renderSettings() {
     const s = state.settings;
@@ -692,6 +772,9 @@
     $('#setState').innerHTML = Object.entries(STATES).map(([k, v]) => `<option value="${k}" ${k === (s.state || '') ? 'selected' : ''}>${v}</option>`).join('');
     $('#setVacation').value = s.vacationDays;
     $('#setZa').value = s.zaStart || '';
+    $('#ccList').innerHTML = state.costCenters.length
+      ? state.costCenters.map((c) => `<div class="row spread" style="padding:4px 0"><span>${esc(c)}</span><button class="icon danger" data-cc-del="${esc(c)}" aria-label="Entfernen">✕</button></div>`).join('')
+      : '<p class="muted" style="margin:0">Noch keine Kostenstellen. Du kannst sie auch direkt auf „Heute“ anlegen.</p>';
     $('#setPlan').innerHTML = [1, 2, 3, 4, 5, 6, 0].filter((d) => s.workdays.includes(d)).map((d) => {
       const v = (s.plan || {})[d]; return `<label>${DAY_NAMES[d]} <input class="plan" data-day="${d}" type="text" inputmode="decimal" placeholder="–" value="${v === undefined || v === '' || v === null ? '' : String(v).replace('.', ',')}"></label>`;
     }).join('');
@@ -752,6 +835,8 @@
     $('#fEnd').required = !isRunning;
     $('#fPause').value = e ? (e.pause || 0) : 30;
     $('#fNote').value = e ? e.note || '' : '';
+    $('#fCc').value = e ? e.cc || '' : (state.currentCc || '');
+    $('#ccOptions').innerHTML = state.costCenters.map((c) => `<option value="${esc(c)}">`).join('');
     $('#fDelete').style.visibility = e ? 'visible' : 'hidden';
     $('#fHint').textContent = isRunning ? 'Dieser Eintrag läuft noch – Ende leer lassen, um weiterzuarbeiten.' : 'Endet die Schicht nach Mitternacht, einfach die Endzeit am Folgetag eintragen.';
     syncType(); dlg.showModal();
@@ -784,7 +869,8 @@
       if (pause >= span) { ev.preventDefault(); toast('Pause ist länger als die Arbeitszeit'); return; }
     }
     if (!e) { e = { id: uid() }; state.entries.push(e); }
-    Object.assign(e, { date, start, end, pause, note });
+    const cc = $('#fCc').value.trim().slice(0, 80);
+    Object.assign(e, { date, start, end, pause, note, cc }); touchCc(cc);
     if (isRunning && end) state.running = null;
     save(); render(); toast('Gespeichert');
   });
@@ -807,17 +893,17 @@
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
   function csv(entries, prefix = '') {
-    const head = ['Datum', 'Wochentag', 'Beginn', 'Ende', 'Pause (Min)', 'Arbeitszeit (Std.)', 'Notiz'];
+    const head = ['Datum', 'Wochentag', 'Beginn', 'Ende', 'Pause (Min)', 'Arbeitszeit (Std.)', 'Kostenstelle', 'Notiz'];
     const q = (v) => `"${String(v).replace(/"/g, '""')}"`;
     let lines = entries.slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).map((e) => {
       const net = Math.max(0, spanMin(e) - recordedPause(e));
       const d = parseYmd(e.date);
       return [`${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`, DAY_LONG[d.getDay()], e.start, e.end || '', Math.round(recordedPause(e)),
-        fmtDur(net), e.note || ''].map(q).join(';');
+        fmtDur(net), e.cc || '', e.note || ''].map(q).join(';');
     });
     Object.entries(state.absences).filter(([k]) => k.startsWith(prefix)).sort().forEach(([k, a]) => {
       const d = parseYmd(k); const label = ABS[a.type] ? ABS[a.type].label : a.type;
-      lines.push([`${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`, DAY_LONG[d.getDay()], '', '', '', '', label + (a.note ? ': ' + a.note : '')].map(q).join(';'));
+      lines.push([`${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`, DAY_LONG[d.getDay()], '', '', '', '', '', label + (a.note ? ': ' + a.note : '')].map(q).join(';'));
     });
     return '﻿' + [head.map(q).join(';'), ...lines].join('\r\n');
   }
@@ -836,7 +922,7 @@
       if (!Array.isArray(d.entries)) throw new Error('format');
       if (!confirm(`Backup mit ${d.entries.length} Einträgen laden? Aktuelle Daten werden ersetzt.`)) return;
       const base = defaults();
-      state = { ...base, ...d, absences: d.absences || {}, settings: { ...base.settings, ...(d.settings || {}) } };
+      state = { ...base, ...d, absences: d.absences || {}, costCenters: d.costCenters || [], settings: { ...base.settings, ...(d.settings || {}) } };
       save(); render(); toast('Backup geladen');
     } catch (e) { toast('Datei ist kein gültiges Backup'); }
     ev.target.value = '';
@@ -877,6 +963,15 @@
     else if (t.id === 'btnPause') startPause();
     else if (t.id === 'btnPauseEnd') endPause();
     else if (t.dataset.edit) openEdit(t.dataset.edit);
+    else if (t.hasAttribute('data-cc-new')) newCc();
+    else if (t.hasAttribute('data-cc')) switchCc(t.dataset.cc);
+    else if (t.dataset.ccDel) {
+      if (confirm(`Kostenstelle „${t.dataset.ccDel}“ aus der Liste entfernen? Bisherige Einträge behalten sie.`)) {
+        state.costCenters = state.costCenters.filter((c) => c !== t.dataset.ccDel);
+        if (state.currentCc === t.dataset.ccDel) state.currentCc = '';
+        save(); render();
+      }
+    }
     else if (t.dataset.absence) openAbsence(t.dataset.absence, false);
     else if (t.hasAttribute('data-absence-new')) openAbsence(ymd(now()), true);
     else if (t.dataset.add) openEdit(null, t.dataset.add);
