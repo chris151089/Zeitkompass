@@ -251,6 +251,15 @@
       <p class="muted">Alle Daten liegen nur in dieser App auf diesem Gerät. Sichere sie regelmäßig in deine iCloud: „In iCloud sichern“ → „In Dateien sichern“ → iCloud Drive. Zum Wiederherstellen dieselbe Datei mit „Backup laden“ öffnen.</p>
       <button class="primary" style="width:100%;margin-bottom:6px" id="cloudBackup">In iCloud sichern</button>
       <p class="muted" id="lastBackupInfo" style="margin:0 0 12px;text-align:center"></p>
+      <div class="field">
+        <label for="setBackupEvery">Erinnerung zum Sichern</label>
+        <select id="setBackupEvery">
+          <option value="1">Täglich</option>
+          <option value="3">Alle 3 Tage</option>
+          <option value="7">Wöchentlich</option>
+          <option value="0">Nie</option>
+        </select>
+      </div>
       <div class="row" style="margin-bottom:10px">
         <button class="grow" id="exportCsv">Alles als CSV</button>
         <button class="grow" id="exportJson">Backup speichern</button>
@@ -330,7 +339,7 @@
     absences: {},          // {'YYYY-MM-DD': {type, note}}
     costCenters: [],       // names, most recently used first
     currentCc: '',         // cost center for the next clock-in
-    settings: { weekly: 40, workdays: [1,2,3,4,5], autoPause: true, startBalance: 0, state: 'AT', vacationDays: 25, plan: {}, zaStart: '', balanceFrom: '' }
+    settings: { weekly: 40, workdays: [1,2,3,4,5], autoPause: true, startBalance: 0, backupEvery: 1, state: 'AT', vacationDays: 25, plan: {}, zaStart: '', balanceFrom: '' }
   });
   const ABS = {
     urlaub:      { label: 'Urlaub', factor: 0, days: 1 },
@@ -947,12 +956,17 @@
     const d = daysSinceBackup(); const l = getLastBackup();
     if ($('#lastBackupInfo')) $('#lastBackupInfo').textContent = l
       ? `Zuletzt gesichert: ${fmtDate(ymd(new Date(l)))}${new Date(l).getFullYear()}, ${hm(new Date(l))} Uhr` : 'Noch nie gesichert';
-    const show = state.entries.length > 0 && (d === null || d >= 7);
+    const every = Number(state.settings.backupEvery ?? 1);
+    if ($('#setBackupEvery')) $('#setBackupEvery').value = String(every);
+    // "daily" = not yet backed up today
+    const due = d === null || (every === 1 ? ymd(new Date(l)) !== ymd(now()) : d >= every);
+    const show = every > 0 && state.entries.length > 0 && due;
     setHtml('#backupNag', show ? `<div class="card" style="border-color:var(--warn);background:var(--warn-soft)">
-      <div class="row spread"><span class="grow" style="color:var(--warn);font-weight:600">${d === null ? 'Noch kein Backup' : `Letztes Backup vor ${d} Tagen`}</span>
+      <div class="row spread"><span class="grow" style="color:var(--warn);font-weight:600">${d === null ? 'Noch kein Backup' : d === 0 ? 'Heute noch nicht gesichert' : d === 1 ? 'Letztes Backup gestern' : `Letztes Backup vor ${d} Tagen`}</span>
       <button class="warn" data-cloud-backup>In iCloud sichern</button></div></div>` : '');
   }
   $('#cloudBackup').addEventListener('click', backupToCloud);
+  $('#setBackupEvery').addEventListener('change', (e) => { state.settings.backupEvery = Number(e.target.value); save(); render(); });
   $('#exportJson').addEventListener('click', () => { download(`zeitkompass-backup-${ymd(now())}.json`, JSON.stringify(state, null, 2), 'application/json'); setLastBackup(); render(); });
   $('#importBtn').addEventListener('click', () => $('#importFile').click());
   $('#importFile').addEventListener('change', async (ev) => {
